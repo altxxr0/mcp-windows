@@ -1,3 +1,16 @@
+<!--
+Sync Impact Report
+==================
+Version change: 2.0.1 → 2.1.0
+Modified principles:
+  - XIV. xUnit Testing Best Practices (removed FluentAssertions reference, use xUnit native assertions)
+Added sections:
+  - XXII. Open Source Dependencies Only (NON-NEGOTIABLE) - new principle prohibiting commercial libraries
+Removed sections: None
+Templates requiring updates: ✅ No updates required (no structural template changes)
+Follow-up TODOs: None
+-->
+
 # mcp-windows Constitution
 
 **Project**: mcp-windows  
@@ -81,7 +94,7 @@ This server is the LLM's "hands" on Windows—it executes, the LLM decides:
 - Return meaningful MCP error responses with actionable context (what failed, why, what to try next)
 - Report partial success explicitly (e.g., "3 of 5 windows enumerated, 2 were closed")
 - Use Polly for transient failure retries (max 3, exponential backoff); never retry destructive operations
-- Default timeouts: 5 seconds for UI operations, 30 seconds for captures; MUST be configurable
+- Default timeouts: 5 seconds for UI operations, 30 seconds for captures; MUST be configurable via environment variable (`MCP_*_TIMEOUT_MS`) for standalone server or VS Code settings for bundled extension
 
 ### X. Thread-Safe Windows Interaction
 
@@ -93,6 +106,7 @@ This server is the LLM's "hands" on Windows—it executes, the LLM decides:
 ### XI. Observability & Diagnostics
 
 - Use `Microsoft.Extensions.Logging` with structured messages and correlation IDs
+- Log to stderr as structured JSON (one object per line) to preserve stdout for MCP protocol
 - Log every tool invocation (name, sanitized parameters, duration, outcome)
 - Support `--verbose` flag; implement health check tool for server status
 - Do NOT log: screenshot image data, credentials, stack traces at Info level
@@ -113,7 +127,7 @@ This server is the LLM's "hands" on Windows—it executes, the LLM decides:
 
 ### XIV. xUnit Testing Best Practices (NON-NEGOTIABLE)
 
-- Use xUnit 2.6+ with FluentAssertions for assertions
+- Use xUnit 2.6+ with native xUnit assertions (Assert.Equal, Assert.True, etc.)
 - Use `IAsyncLifetime` for async setup/teardown; `IClassFixture<T>` for shared state (e.g., STA thread)
 - Use `[Collection("WindowsDesktop")]` to serialize desktop-dependent tests
 - Use `TheoryData<T>` and Bogus for test data; NSubstitute for rare mocking scenarios
@@ -177,6 +191,16 @@ This server is the LLM's "hands" on Windows—it executes, the LLM decides:
 - Use `System.CommandLine` for argument parsing; support `--help`, `--version`, `--verbose`
 - Handle `IHostApplicationLifetime.ApplicationStopping` for cleanup; set `HostOptions.ShutdownTimeout`
 
+### XXII. Open Source Dependencies Only (NON-NEGOTIABLE)
+
+As an MIT-licensed open source project, all dependencies MUST be freely usable:
+
+- All NuGet packages MUST have OSI-approved open source licenses (MIT, Apache 2.0, BSD, etc.)
+- Commercial libraries with paid tiers or restrictive licenses are PROHIBITED
+- Microsoft-published packages (Microsoft.*, System.*) are always permitted
+- Before adding any dependency, verify its license is compatible with MIT
+- Dependencies with "free for open source, paid for commercial" models are PROHIBITED to avoid contributor confusion
+
 ---
 
 ## Technology Stack
@@ -185,7 +209,7 @@ This server is the LLM's "hands" on Windows—it executes, the LLM decides:
 |-----------|-------------|
 | Language | C# 12+ (latest stable) |
 | Runtime | .NET 8.0 (or latest LTS) |
-| Test Framework | xUnit 2.6+ with FluentAssertions, Bogus, NSubstitute |
+| Test Framework | xUnit 2.6+ with native assertions, Bogus, NSubstitute |
 | Logging | Microsoft.Extensions.Logging + Serilog |
 | Resilience | Polly |
 | MCP SDK | Official C# MCP SDK (latest) |
@@ -232,4 +256,4 @@ This server is the LLM's "hands" on Windows—it executes, the LLM decides:
 
 ---
 
-**Version**: 2.0.0 | **Ratified**: 2025-12-07 | **Last Amended**: 2025-12-07
+**Version**: 2.1.0 | **Ratified**: 2025-12-07 | **Last Amended**: 2025-12-07

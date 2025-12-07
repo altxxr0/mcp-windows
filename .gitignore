@@ -1,0 +1,88 @@
+# .NET / C#
+bin/
+obj/
+out/
+publish/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.userprefs
+*.cache
+*.csproj.user
+*.sln.cache
+*.sln.docstates
+
+# Build outputs
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+TestResults/
+*.trx
+coverage/
+*.coverage
+*.coveragexml
+lcov.info
+
+# IDE
+.idea/
+*.sln.iml
+.vscode/settings.json
+.vscode/tasks.json
+.vscode/launch.json
+.vscode/*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+*~
+
+# Environment & secrets
+.env
+.env.*
+*.env
+appsettings.*.json
+!appsettings.Development.json.template
+
+# Logs
+*.log
+*.log.*
+logs/
+
+# Temp files
+*.tmp
+*.temp
+*.swp
+*.bak
+
+# User-specific
+launchSettings.json
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Project-specific
+.specify/memory/

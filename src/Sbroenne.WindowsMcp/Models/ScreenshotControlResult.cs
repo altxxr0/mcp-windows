@@ -68,6 +68,13 @@ public sealed record ScreenshotControlResult
     public IReadOnlyList<MonitorInfo>? AvailableMonitors { get; init; }
 
     /// <summary>
+    /// Gets the virtual screen bounds spanning all monitors. Present on ListMonitors action.
+    /// </summary>
+    [JsonPropertyName("virtual_screen")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public VirtualScreenInfo? VirtualScreen { get; init; }
+
+    /// <summary>
     /// Creates a successful capture result.
     /// </summary>
     public static ScreenshotControlResult CaptureSuccess(string imageData, int width, int height, string message) =>
@@ -85,13 +92,17 @@ public sealed record ScreenshotControlResult
     /// <summary>
     /// Creates a successful monitor list result.
     /// </summary>
-    public static ScreenshotControlResult MonitorListSuccess(IReadOnlyList<MonitorInfo> monitors, string message) =>
+    public static ScreenshotControlResult MonitorListSuccess(
+        IReadOnlyList<MonitorInfo> monitors,
+        VirtualScreenInfo virtualScreen,
+        string message) =>
         new()
         {
             Success = true,
             ErrorCode = ToSnakeCase(ScreenshotErrorCode.Success),
             Message = message,
-            Monitors = monitors
+            Monitors = monitors,
+            VirtualScreen = virtualScreen
         };
 
     /// <summary>

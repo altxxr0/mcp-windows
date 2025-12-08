@@ -1,18 +1,17 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 2.1.0 → 2.2.0
+Version change: 2.2.0 → 2.3.0
 Modified principles:
-  - XI. Observability & Diagnostics (removed structured JSON requirement, simplified stderr logging)
-  - XXI. Modern .NET CLI Application Architecture (removed Serilog reference)
+  - XIV. xUnit Testing Best Practices (added secondary monitor requirement for integration tests)
 Added sections: None
 Removed sections: None
-Technology Stack changes:
-  - Logging: Changed from "Microsoft.Extensions.Logging + Serilog" to "Microsoft.Extensions.Logging"
+Technology Stack changes: None
 Templates requiring updates: ✅ No updates required
 Follow-up TODOs: None
-Rationale: Serilog produced verbose JSON logs to stderr that VS Code displayed as warnings.
-           The built-in console logger is simpler and sufficient for MCP server needs.
+Rationale: Integration tests that interact with the Windows desktop (mouse, keyboard, screenshots)
+           MUST use the secondary monitor when available to avoid interference with active VS Code
+           session and developer workflow on the primary monitor.
 -->
 
 # mcp-windows Constitution
@@ -137,6 +136,7 @@ This server is the LLM's "hands" on Windows—it executes, the LLM decides:
 - Use `[Collection("WindowsDesktop")]` to serialize desktop-dependent tests
 - Use `TheoryData<T>` and Bogus for test data; NSubstitute for rare mocking scenarios
 - Tests MUST be independent—clean up Windows state (close test windows, restore clipboard)
+- **Secondary Monitor Preference**: Integration tests that interact with the Windows desktop (mouse movements, keyboard input, window management, screenshots) MUST target the secondary monitor when available; this prevents interference with the developer's active VS Code session on the primary monitor; tests MUST detect available monitors at startup and select the secondary monitor if present, falling back to primary only when no secondary exists
 
 ### XV. Input Simulation Best Practices (NON-NEGOTIABLE)
 
@@ -261,4 +261,4 @@ As an MIT-licensed open source project, all dependencies MUST be freely usable:
 
 ---
 
-**Version**: 2.2.0 | **Ratified**: 2025-12-07 | **Last Amended**: 2025-12-08
+**Version**: 2.3.0 | **Ratified**: 2025-12-07 | **Last Amended**: 2025-12-08

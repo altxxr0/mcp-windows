@@ -72,6 +72,7 @@ public sealed class ScreenshotService : IScreenshotService
                 CaptureTarget.Monitor => await CaptureMonitorAsync(request, cancellationToken),
                 CaptureTarget.Window => await CaptureWindowAsync(request, cancellationToken),
                 CaptureTarget.Region => await CaptureRegionAsync(request, cancellationToken),
+                CaptureTarget.AllMonitors => await CaptureAllMonitorsAsync(request, cancellationToken),
                 _ => ScreenshotControlResult.Error(
                     ScreenshotErrorCode.InvalidRequest,
                     $"Unsupported capture target: {request.Target}")
@@ -103,8 +104,15 @@ public sealed class ScreenshotService : IScreenshotService
     private ScreenshotControlResult HandleListMonitors()
     {
         var monitors = _monitorService.GetMonitors();
+        var virtualBounds = Input.CoordinateNormalizer.GetVirtualScreenBounds();
+        var virtualScreen = new VirtualScreenInfo(
+            virtualBounds.Left,
+            virtualBounds.Top,
+            virtualBounds.Width,
+            virtualBounds.Height);
+
         _logger.LogMonitorListSuccess(monitors.Count);
-        return ScreenshotControlResult.MonitorListSuccess(monitors, $"Found {monitors.Count} monitor(s)");
+        return ScreenshotControlResult.MonitorListSuccess(monitors, virtualScreen, $"Found {monitors.Count} monitor(s)");
     }
 
     /// <summary>
@@ -116,6 +124,18 @@ public sealed class ScreenshotService : IScreenshotService
     {
         var primary = _monitorService.GetPrimaryMonitor();
         var region = new CaptureRegion(primary.X, primary.Y, primary.Width, primary.Height);
+        return CaptureRegionInternalAsync(region, request.IncludeCursor, cancellationToken);
+    }
+
+    /// <summary>
+    /// Captures all monitors (the entire virtual screen spanning all displays).
+    /// </summary>
+    private Task<ScreenshotControlResult> CaptureAllMonitorsAsync(
+        ScreenshotControlRequest request,
+        CancellationToken cancellationToken)
+    {
+        var bounds = Input.CoordinateNormalizer.GetVirtualScreenBounds();
+        var region = new CaptureRegion(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
         return CaptureRegionInternalAsync(region, request.IncludeCursor, cancellationToken);
     }
 

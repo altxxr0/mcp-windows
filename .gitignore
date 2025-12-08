@@ -86,3 +86,6 @@ launchSettings.json
 
 # Project-specific
 .specify/memory/
+
+# LLM Integration Test Results (screenshots and logs)
+specs/007-llm-integration-testing/results/

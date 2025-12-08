@@ -201,10 +201,30 @@ public sealed class WindowActivator : IWindowActivator
     private async Task<bool> TryWithMinimizeRestoreAsync(nint handle, CancellationToken cancellationToken)
     {
         // This is a last-resort strategy that briefly minimizes the window
+        // Save the current window bounds before minimizing to restore them later
+        // (Windows may not restore the window to its original position)
+        RECT originalBounds = default;
+        bool hasBounds = NativeMethods.GetWindowRect(handle, out originalBounds);
+
         NativeMethods.ShowWindow(handle, NativeConstants.SW_MINIMIZE);
         await Task.Delay(50, cancellationToken);
         NativeMethods.ShowWindow(handle, NativeConstants.SW_RESTORE);
         await Task.Delay(50, cancellationToken);
+
+        // Restore the original bounds if we saved them
+        if (hasBounds)
+        {
+            int width = originalBounds.Right - originalBounds.Left;
+            int height = originalBounds.Bottom - originalBounds.Top;
+            NativeMethods.SetWindowPos(
+                handle,
+                IntPtr.Zero,
+                originalBounds.Left,
+                originalBounds.Top,
+                width,
+                height,
+                NativeConstants.SWP_NOZORDER | NativeConstants.SWP_NOACTIVATE);
+        }
 
         return NativeMethods.SetForegroundWindow(handle) && IsForegroundWindow(handle);
     }

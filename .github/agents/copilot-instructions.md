@@ -8,6 +8,10 @@ Auto-generated from all feature plans. Last updated: 2025-12-07
 - C# 12+ / .NET 8.0 LTS + MCP C# SDK, Microsoft.Extensions.Logging, Serilog (003-window-management)
 - N/A (stateless window queries) (003-window-management)
 - TypeScript 5.9+ (extension), C# 12+ (.NET 8.0 for bundled server) + VS Code Extension API 1.106.0+, .NET Install Tool extension (006-vscode-extension)
+- N/A (Test scenarios are natural language prompts; no compiled code) (007-llm-integration-testing)
+- Filesystem (screenshots saved as PNG, results as markdown) (007-llm-integration-testing)
+- C# 12+ / .NET 8.0 LTS + Windows GDI+ (System.Drawing), existing ScreenshotService infrastructure (008-all-monitors-screenshot)
+- N/A (returns base64-encoded PNG via MCP) (008-all-monitors-screenshot)
 
 - C# 12+ (latest stable per Constitution XIII) (001-mouse-control)
 
@@ -27,10 +31,32 @@ tests/
 C# 12+ (latest stable per Constitution XIII): Follow standard conventions
 
 ## Recent Changes
+- 008-all-monitors-screenshot: Added `CaptureTarget.AllMonitors` to screenshot_control tool for capturing entire virtual screen spanning all monitors. Uses existing `CoordinateNormalizer.GetVirtualScreenBounds()` and `CaptureRegionInternalAsync()`. Also added `VirtualScreen` property to `list_monitors` response.
+- 007-llm-integration-testing: Added N/A (Test scenarios are natural language prompts; no compiled code)
 - 006-vscode-extension: Added TypeScript 5.9+ (extension), C# 12+ (.NET 8.0 for bundled server) + VS Code Extension API 1.106.0+, .NET Install Tool extension
-- 003-window-management: Added C# 12+ / .NET 8.0 LTS + MCP C# SDK, Microsoft.Extensions.Logging, Serilog
-- 002-keyboard-control: Added C# 12+ (.NET 8.0 LTS) + Microsoft.Extensions.Logging, Serilog, MCP SDK, System.CommandLine
 
 
 <!-- MANUAL ADDITIONS START -->
+
+## Feature: 008-all-monitors-screenshot (Implemented)
+
+**Purpose**: Capture entire virtual screen spanning all monitors in a single screenshot for LLM-based integration test verification.
+
+**Key Files**:
+- `src/Sbroenne.WindowsMcp/Models/CaptureTarget.cs` - Added `AllMonitors = 4` enum value
+- `src/Sbroenne.WindowsMcp/Models/VirtualScreenInfo.cs` - New record for virtual screen bounds
+- `src/Sbroenne.WindowsMcp/Capture/ScreenshotService.cs` - Added `CaptureAllMonitorsAsync()` method
+- `src/Sbroenne.WindowsMcp/Tools/ScreenshotControlTool.cs` - Added `"all_monitors"` target parsing
+- `tests/Sbroenne.WindowsMcp.Tests/Integration/ScreenshotAllMonitorsTests.cs` - 10 integration tests
+
+**Usage**:
+```json
+{ "action": "capture", "target": "all_monitors", "includeCursor": true }
+```
+
+**list_monitors now includes virtualScreen**:
+```json
+{ "virtualScreen": { "x": 0, "y": 0, "width": 4480, "height": 1440 } }
+```
+
 <!-- MANUAL ADDITIONS END -->

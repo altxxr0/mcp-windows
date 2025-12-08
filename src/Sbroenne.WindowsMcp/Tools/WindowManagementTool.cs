@@ -1,0 +1,432 @@
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Runtime.Versioning;
+using System.Text.Json;
+using ModelContextProtocol.Server;
+using Sbroenne.WindowsMcp.Configuration;
+using Sbroenne.WindowsMcp.Logging;
+using Sbroenne.WindowsMcp.Models;
+using Sbroenne.WindowsMcp.Window;
+
+namespace Sbroenne.WindowsMcp.Tools;
+
+/// <summary>
+/// MCP tool for managing windows on Windows.
+/// </summary>
+[McpServerToolType]
+[SupportedOSPlatform("windows")]
+public sealed class WindowManagementTool
+{
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        WriteIndented = false,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+    };
+
+    private readonly IWindowService _windowService;
+    private readonly WindowOperationLogger? _logger;
+    private readonly WindowConfiguration _configuration;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="WindowManagementTool"/> class.
+    /// </summary>
+    /// <param name="windowService">The window service.</param>
+    /// <param name="configuration">The window configuration.</param>
+    /// <param name="logger">Optional operation logger.</param>
+    public WindowManagementTool(
+        IWindowService windowService,
+        WindowConfiguration configuration,
+        WindowOperationLogger? logger = null)
+    {
+        ArgumentNullException.ThrowIfNull(windowService);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        _windowService = windowService;
+        _configuration = configuration;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Manages windows with various actions.
+    /// </summary>
+    /// <param name="action">The window action to perform: list, find, activate, get_foreground, minimize, maximize, restore, close, move, resize, set_bounds, or wait_for.</param>
+    /// <param name="handle">Window handle (required for activate, minimize, maximize, restore, close, move, resize, set_bounds).</param>
+    /// <param name="title">Window title to search for (required for find and wait_for).</param>
+    /// <param name="filter">Filter windows by title or process name (for list action).</param>
+    /// <param name="regex">Use regex matching for title/filter (default: false).</param>
+    /// <param name="includeAllDesktops">Include windows on other virtual desktops (default: false).</param>
+    /// <param name="x">X-coordinate for move or set_bounds action.</param>
+    /// <param name="y">Y-coordinate for move or set_bounds action.</param>
+    /// <param name="width">Width for resize or set_bounds action.</param>
+    /// <param name="height">Height for resize or set_bounds action.</param>
+    /// <param name="timeoutMs">Timeout in milliseconds for wait_for action.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The result of the window operation as JSON.</returns>
+    [McpServerTool(Name = "window_management")]
+    [Description("Manage windows on Windows. Supports list, find, activate, get_foreground, minimize, maximize, restore, close, move, resize, set_bounds, and wait_for actions.")]
+    public async Task<string> ExecuteAsync(
+        [Description("The window action to perform: list, find, activate, get_foreground, minimize, maximize, restore, close, move, resize, set_bounds, or wait_for")] string action,
+        [Description("Window handle (required for activate, minimize, maximize, restore, close, move, resize, set_bounds)")] string? handle = null,
+        [Description("Window title to search for (required for find and wait_for)")] string? title = null,
+        [Description("Filter windows by title or process name (for list action)")] string? filter = null,
+        [Description("Use regex matching for title/filter (default: false)")] bool regex = false,
+        [Description("Include windows on other virtual desktops (default: false)")] bool includeAllDesktops = false,
+        [Description("X-coordinate for move or set_bounds action")] int? x = null,
+        [Description("Y-coordinate for move or set_bounds action")] int? y = null,
+        [Description("Width for resize or set_bounds action")] int? width = null,
+        [Description("Height for resize or set_bounds action")] int? height = null,
+        [Description("Timeout in milliseconds for wait_for action")] int? timeoutMs = null,
+        CancellationToken cancellationToken = default)
+    {
+        var stopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            // Validate and parse the action
+            if (string.IsNullOrWhiteSpace(action))
+            {
+                var result = WindowManagementResult.CreateFailure(
+                    WindowManagementErrorCode.InvalidAction,
+                    "Action parameter is required");
+                _logger?.LogWindowOperation("null", success: false, errorMessage: result.Error);
+                return SerializeResult(result);
+            }
+
+            var windowAction = ParseAction(action);
+            if (windowAction is null)
+            {
+                var result = WindowManagementResult.CreateFailure(
+                    WindowManagementErrorCode.InvalidAction,
+                    $"Unknown action: '{action}'. Valid actions are: list, find, activate, get_foreground, minimize, maximize, restore, close, move, resize, set_bounds, wait_for");
+                _logger?.LogWindowOperation(action, success: false, errorMessage: result.Error);
+                return SerializeResult(result);
+            }
+
+            WindowManagementResult operationResult;
+
+            switch (windowAction.Value)
+            {
+                case WindowAction.List:
+                    operationResult = await HandleListAsync(filter, regex, includeAllDesktops, cancellationToken);
+                    break;
+
+                case WindowAction.Find:
+                    operationResult = await HandleFindAsync(title, regex, cancellationToken);
+                    break;
+
+                case WindowAction.Activate:
+                    operationResult = await HandleActivateAsync(handle, cancellationToken);
+                    break;
+
+                case WindowAction.GetForeground:
+                    operationResult = await HandleGetForegroundAsync(cancellationToken);
+                    break;
+
+                case WindowAction.Minimize:
+                    operationResult = await HandleMinimizeAsync(handle, cancellationToken);
+                    break;
+
+                case WindowAction.Maximize:
+                    operationResult = await HandleMaximizeAsync(handle, cancellationToken);
+                    break;
+
+                case WindowAction.Restore:
+                    operationResult = await HandleRestoreAsync(handle, cancellationToken);
+                    break;
+
+                case WindowAction.Close:
+                    operationResult = await HandleCloseAsync(handle, cancellationToken);
+                    break;
+
+                case WindowAction.Move:
+                    operationResult = await HandleMoveAsync(handle, x, y, cancellationToken);
+                    break;
+
+                case WindowAction.Resize:
+                    operationResult = await HandleResizeAsync(handle, width, height, cancellationToken);
+                    break;
+
+                case WindowAction.SetBounds:
+                    operationResult = await HandleSetBoundsAsync(handle, x, y, width, height, cancellationToken);
+                    break;
+
+                case WindowAction.WaitFor:
+                    operationResult = await HandleWaitForAsync(title, regex, timeoutMs, cancellationToken);
+                    break;
+
+                default:
+                    operationResult = WindowManagementResult.CreateFailure(
+                        WindowManagementErrorCode.InvalidAction,
+                        $"Unknown action: '{action}'");
+                    break;
+            }
+
+            stopwatch.Stop();
+
+            _logger?.LogWindowOperation(
+                action,
+                success: operationResult.Success,
+                windowCount: operationResult.Windows?.Count,
+                windowTitle: operationResult.Window?.Title,
+                errorMessage: operationResult.Error);
+
+            return SerializeResult(operationResult);
+        }
+        catch (OperationCanceledException)
+        {
+            stopwatch.Stop();
+            var errorResult = WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.Timeout,
+                "Operation was cancelled");
+            _logger?.LogWindowOperation(action ?? "null", success: false, errorMessage: errorResult.Error);
+            return SerializeResult(errorResult);
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            _logger?.LogError(action ?? "null", ex);
+            var errorResult = WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.SystemError,
+                $"An unexpected error occurred: {ex.Message}");
+            return SerializeResult(errorResult);
+        }
+    }
+
+    private async Task<WindowManagementResult> HandleListAsync(
+        string? filter,
+        bool useRegex,
+        bool includeAllDesktops,
+        CancellationToken cancellationToken)
+    {
+        return await _windowService.ListWindowsAsync(filter, useRegex, includeAllDesktops, cancellationToken);
+    }
+
+    private async Task<WindowManagementResult> HandleFindAsync(
+        string? title,
+        bool useRegex,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(title))
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.MissingRequiredParameter,
+                "Title is required for find action");
+        }
+
+        return await _windowService.FindWindowAsync(title, useRegex, cancellationToken);
+    }
+
+    private async Task<WindowManagementResult> HandleActivateAsync(
+        string? handleString,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseHandle(handleString, out nint handle))
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.MissingRequiredParameter,
+                "Valid handle is required for activate action");
+        }
+
+        return await _windowService.ActivateWindowAsync(handle, cancellationToken);
+    }
+
+    private async Task<WindowManagementResult> HandleGetForegroundAsync(CancellationToken cancellationToken)
+    {
+        return await _windowService.GetForegroundWindowAsync(cancellationToken);
+    }
+
+    private async Task<WindowManagementResult> HandleMinimizeAsync(
+        string? handleString,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseHandle(handleString, out nint handle))
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.MissingRequiredParameter,
+                "Valid handle is required for minimize action");
+        }
+
+        return await _windowService.MinimizeWindowAsync(handle, cancellationToken);
+    }
+
+    private async Task<WindowManagementResult> HandleMaximizeAsync(
+        string? handleString,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseHandle(handleString, out nint handle))
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.MissingRequiredParameter,
+                "Valid handle is required for maximize action");
+        }
+
+        return await _windowService.MaximizeWindowAsync(handle, cancellationToken);
+    }
+
+    private async Task<WindowManagementResult> HandleRestoreAsync(
+        string? handleString,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseHandle(handleString, out nint handle))
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.MissingRequiredParameter,
+                "Valid handle is required for restore action");
+        }
+
+        return await _windowService.RestoreWindowAsync(handle, cancellationToken);
+    }
+
+    private async Task<WindowManagementResult> HandleCloseAsync(
+        string? handleString,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseHandle(handleString, out nint handle))
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.MissingRequiredParameter,
+                "Valid handle is required for close action");
+        }
+
+        return await _windowService.CloseWindowAsync(handle, cancellationToken);
+    }
+
+    private async Task<WindowManagementResult> HandleMoveAsync(
+        string? handleString,
+        int? x,
+        int? y,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseHandle(handleString, out nint handle))
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.MissingRequiredParameter,
+                "Valid handle is required for move action");
+        }
+
+        if (!x.HasValue || !y.HasValue)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.MissingRequiredParameter,
+                "Both x and y coordinates are required for move action");
+        }
+
+        return await _windowService.MoveWindowAsync(handle, x.Value, y.Value, cancellationToken);
+    }
+
+    private async Task<WindowManagementResult> HandleResizeAsync(
+        string? handleString,
+        int? width,
+        int? height,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseHandle(handleString, out nint handle))
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.MissingRequiredParameter,
+                "Valid handle is required for resize action");
+        }
+
+        if (!width.HasValue || !height.HasValue)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.MissingRequiredParameter,
+                "Both width and height are required for resize action");
+        }
+
+        return await _windowService.ResizeWindowAsync(handle, width.Value, height.Value, cancellationToken);
+    }
+
+    private async Task<WindowManagementResult> HandleSetBoundsAsync(
+        string? handleString,
+        int? x,
+        int? y,
+        int? width,
+        int? height,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseHandle(handleString, out nint handle))
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.MissingRequiredParameter,
+                "Valid handle is required for set_bounds action");
+        }
+
+        if (!x.HasValue || !y.HasValue || !width.HasValue || !height.HasValue)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.MissingRequiredParameter,
+                "All bounds parameters (x, y, width, height) are required for set_bounds action");
+        }
+
+        var bounds = new WindowBounds
+        {
+            X = x.Value,
+            Y = y.Value,
+            Width = width.Value,
+            Height = height.Value
+        };
+
+        return await _windowService.SetBoundsAsync(handle, bounds, cancellationToken);
+    }
+
+    private async Task<WindowManagementResult> HandleWaitForAsync(
+        string? title,
+        bool useRegex,
+        int? timeoutMs,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(title))
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.MissingRequiredParameter,
+                "Title is required for wait_for action");
+        }
+
+        return await _windowService.WaitForWindowAsync(title, useRegex, timeoutMs, cancellationToken);
+    }
+
+    private static bool TryParseHandle(string? handleString, out nint handle)
+    {
+        handle = IntPtr.Zero;
+
+        if (string.IsNullOrWhiteSpace(handleString))
+        {
+            return false;
+        }
+
+        if (long.TryParse(handleString, out long handleValue) && handleValue != 0)
+        {
+            handle = (nint)handleValue;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static WindowAction? ParseAction(string action)
+    {
+        return action.ToLowerInvariant() switch
+        {
+            "list" => WindowAction.List,
+            "find" => WindowAction.Find,
+            "activate" => WindowAction.Activate,
+            "get_foreground" => WindowAction.GetForeground,
+            "minimize" => WindowAction.Minimize,
+            "maximize" => WindowAction.Maximize,
+            "restore" => WindowAction.Restore,
+            "close" => WindowAction.Close,
+            "move" => WindowAction.Move,
+            "resize" => WindowAction.Resize,
+            "set_bounds" => WindowAction.SetBounds,
+            "wait_for" => WindowAction.WaitFor,
+            _ => null,
+        };
+    }
+
+    private static string SerializeResult(WindowManagementResult result)
+    {
+        return JsonSerializer.Serialize(result, JsonOptions);
+    }
+}

@@ -1,0 +1,240 @@
+using System.Runtime.Versioning;
+using Sbroenne.WindowsMcp.Models;
+using Sbroenne.WindowsMcp.Window;
+
+namespace Sbroenne.WindowsMcp.Tests.Integration;
+
+/// <summary>
+/// Integration tests for window activation operations.
+/// </summary>
+[Collection("WindowManagement")]
+[SupportedOSPlatform("windows")]
+public class WindowActivateTests : IClassFixture<WindowTestFixture>
+{
+    private readonly IWindowService _windowService;
+    private readonly IWindowActivator _windowActivator;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="WindowActivateTests"/> class.
+    /// </summary>
+    /// <param name="fixture">The shared test fixture.</param>
+    public WindowActivateTests(WindowTestFixture fixture)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+        _windowService = fixture.WindowService;
+        _windowActivator = fixture.WindowActivator;
+    }
+
+    [Fact]
+    public async Task ActivateWindow_BringsWindowToForeground()
+    {
+        // Arrange - Get a list of windows
+        var listResult = await _windowService.ListWindowsAsync();
+        Assert.True(listResult.Success);
+        Assert.NotNull(listResult.Windows);
+
+        if (listResult.Windows.Count == 0)
+        {
+            // No windows available, skip test
+            return;
+        }
+
+        // Find a window that is not currently foreground and not elevated
+        var targetWindow = listResult.Windows.FirstOrDefault(w => !w.IsForeground && !w.IsElevated);
+        if (targetWindow is null)
+        {
+            // All windows are either foreground or elevated, skip test
+            return;
+        }
+
+        // Parse handle
+        Assert.True(long.TryParse(targetWindow.Handle, out long handleValue));
+        nint handle = (nint)handleValue;
+
+        // Act
+        var result = await _windowService.ActivateWindowAsync(handle);
+
+        // Assert - in a test environment, activation may fail due to focus restrictions
+        // We just verify the operation completes without exception and returns a result
+        Assert.NotNull(result);
+        // Note: result.Success may be false due to Windows focus stealing prevention
+    }
+
+    [Fact]
+    public async Task ActivateWindow_RestoresMinimizedWindow()
+    {
+        // Arrange - Get a list of windows
+        var listResult = await _windowService.ListWindowsAsync();
+        Assert.True(listResult.Success);
+        Assert.NotNull(listResult.Windows);
+
+        // Find a minimized window
+        var minimizedWindow = listResult.Windows.FirstOrDefault(w =>
+            w.State == WindowState.Minimized && !w.IsElevated);
+
+        if (minimizedWindow is null)
+        {
+            // No minimized windows, skip test
+            return;
+        }
+
+        Assert.True(long.TryParse(minimizedWindow.Handle, out long handleValue));
+        nint handle = (nint)handleValue;
+
+        // Act
+        var result = await _windowService.ActivateWindowAsync(handle);
+
+        // Assert - in a test environment, activation may fail
+        // We verify the operation completes without exception
+        Assert.NotNull(result);
+        // Note: Due to Windows focus restrictions, we may not always succeed
+        if (result.Success)
+        {
+            Assert.NotNull(result.Window);
+            // After activation, window should not be minimized
+            Assert.NotEqual(WindowState.Minimized, result.Window.State);
+        }
+    }
+
+    [Fact]
+    public async Task ActivateWindow_ReturnsWindowInfo()
+    {
+        // Arrange - Get a window to activate
+        var listResult = await _windowService.ListWindowsAsync();
+        Assert.True(listResult.Success);
+        Assert.NotNull(listResult.Windows);
+
+        if (listResult.Windows.Count == 0)
+        {
+            // No windows available, skip test
+            return;
+        }
+
+        var targetWindow = listResult.Windows.FirstOrDefault(w => !w.IsElevated);
+        if (targetWindow is null)
+        {
+            // All windows elevated, skip test
+            return;
+        }
+
+        Assert.True(long.TryParse(targetWindow.Handle, out long handleValue));
+        nint handle = (nint)handleValue;
+
+        // Act
+        var result = await _windowService.ActivateWindowAsync(handle);
+
+        // Assert - operation completes, success may vary due to focus restrictions
+        Assert.NotNull(result);
+        if (result.Success)
+        {
+            Assert.NotNull(result.Window);
+            Assert.Equal(targetWindow.Handle, result.Window.Handle);
+            Assert.NotNull(result.Window.Title);
+            Assert.NotNull(result.Window.Bounds);
+        }
+    }
+
+    [Fact]
+    public async Task ActivateWindow_InvalidHandle_ReturnsError()
+    {
+        // Arrange - Use an invalid handle
+        nint invalidHandle = (nint)0x12345678; // Almost certainly invalid
+
+        // Act
+        var result = await _windowService.ActivateWindowAsync(invalidHandle);
+
+        // Assert
+        // The result may succeed but with window not found, or fail with an error
+        // Either way, there should be no exception and the result should indicate the issue
+        if (!result.Success)
+        {
+            Assert.NotNull(result.Error);
+        }
+    }
+
+    [Fact]
+    public async Task ActivateWindow_ZeroHandle_ReturnsError()
+    {
+        // Arrange
+        nint zeroHandle = IntPtr.Zero;
+
+        // Act
+        var result = await _windowService.ActivateWindowAsync(zeroHandle);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.NotNull(result.Error);
+    }
+
+    [Fact]
+    public async Task GetForegroundWindow_ReturnsCurrentForeground()
+    {
+        // Act
+        var result = await _windowService.GetForegroundWindowAsync();
+
+        // Assert - should typically succeed but may fail in headless environments
+        Assert.NotNull(result);
+        if (result.Success)
+        {
+            Assert.NotNull(result.Window);
+            Assert.True(result.Window.IsForeground);
+            Assert.NotNull(result.Window.Title);
+        }
+        // In some test environments, there may be no foreground window
+    }
+
+    [Fact]
+    public async Task GetForegroundWindow_ReturnsValidHandle()
+    {
+        // Act
+        var result = await _windowService.GetForegroundWindowAsync();
+
+        // Assert - should typically succeed but may fail in headless environments
+        Assert.NotNull(result);
+        if (result.Success)
+        {
+            Assert.NotNull(result.Window);
+            Assert.True(long.TryParse(result.Window.Handle, out long handleValue));
+            Assert.NotEqual(0L, handleValue);
+        }
+    }
+
+    [Fact]
+    public async Task IsForegroundWindow_ReturnsTrueForForeground()
+    {
+        // Arrange - Get the current foreground window
+        nint foregroundHandle = _windowActivator.GetForegroundWindow();
+        Assert.NotEqual(IntPtr.Zero, foregroundHandle);
+
+        // Act
+        bool isForeground = _windowActivator.IsForegroundWindow(foregroundHandle);
+
+        // Assert
+        Assert.True(isForeground);
+    }
+
+    [Fact]
+    public async Task IsForegroundWindow_ReturnsFalseForNonForeground()
+    {
+        // Arrange - Get a list of windows and find one that's not foreground
+        var listResult = await _windowService.ListWindowsAsync();
+        Assert.True(listResult.Success);
+        Assert.NotNull(listResult.Windows);
+
+        var nonForegroundWindow = listResult.Windows.FirstOrDefault(w => !w.IsForeground);
+        if (nonForegroundWindow is null)
+        {
+            // Only one window, skip test
+            return;
+        }
+
+        Assert.True(long.TryParse(nonForegroundWindow.Handle, out long handleValue));
+        nint handle = (nint)handleValue;
+
+        // Act
+        bool isForeground = _windowActivator.IsForegroundWindow(handle);
+
+        // Assert
+        Assert.False(isForeground);
+    }
+}

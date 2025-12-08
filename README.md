@@ -21,6 +21,18 @@ A Model Context Protocol (MCP) server providing Windows automation capabilities 
 - **Special keys** - Copilot key (Windows 11), media controls, browser keys
 - **Layout detection** - query current keyboard layout (BCP-47 format)
 
+### 🪟 Window Management
+- **List windows** - enumerate all visible top-level windows with titles, handles, process info, and bounds
+- **Find windows** - locate windows by title (substring or regex matching)
+- **Activate windows** - bring windows to foreground with focus
+- **Get foreground** - report which window currently has focus
+- **Control state** - minimize, maximize, restore, and close windows
+- **Move/resize** - position and size windows to specified coordinates
+- **Wait for window** - wait for a window to appear with configurable timeout
+- **Multi-monitor support** - full awareness of monitor index and DPI
+- **UWP/Store apps** - proper detection and handling
+- **Cloaking detection** - filter out virtual desktop and shell-managed windows
+
 ## Prerequisites
 
 - Windows 10/11
@@ -96,6 +108,25 @@ Control keyboard input on Windows.
 | `release_all` | Release all held keys | none |
 | `get_keyboard_layout` | Query current layout | none |
 
+### window_management
+
+Control windows on the Windows desktop.
+
+| Action | Description | Required Parameters |
+|--------|-------------|---------------------|
+| `list` | List all visible windows | none |
+| `find` | Find windows by title | `title` |
+| `activate` | Bring window to foreground | `handle` |
+| `get_foreground` | Get current foreground window | none |
+| `minimize` | Minimize window | `handle` |
+| `maximize` | Maximize window | `handle` |
+| `restore` | Restore window from min/max | `handle` |
+| `close` | Close window (sends WM_CLOSE) | `handle` |
+| `move` | Move window to position | `handle`, `x`, `y` |
+| `resize` | Resize window | `handle`, `width`, `height` |
+| `set_bounds` | Move and resize atomically | `handle`, `x`, `y`, `width`, `height` |
+| `wait_for` | Wait for window to appear | `title` |
+
 ## Examples
 
 ### Mouse Control
@@ -131,6 +162,52 @@ Control keyboard input on Windows.
 
 // Play/Pause media
 { "action": "press", "key": "mediaplaypause" }
+```
+
+### Window Management
+
+```json
+// List all windows
+{ "action": "list" }
+
+// List with filter
+{ "action": "list", "filter": "Chrome" }
+
+// Find windows by title (substring match)
+{ "action": "find", "title": "Notepad" }
+
+// Find windows by regex
+{ "action": "find", "title": ".*Visual Studio.*", "regex": true }
+
+// Activate a window (bring to foreground)
+{ "action": "activate", "handle": "12345678" }
+
+// Get current foreground window
+{ "action": "get_foreground" }
+
+// Minimize a window
+{ "action": "minimize", "handle": "12345678" }
+
+// Maximize a window
+{ "action": "maximize", "handle": "12345678" }
+
+// Restore from minimized/maximized
+{ "action": "restore", "handle": "12345678" }
+
+// Close a window
+{ "action": "close", "handle": "12345678" }
+
+// Move window to position
+{ "action": "move", "handle": "12345678", "x": 100, "y": 100 }
+
+// Resize window
+{ "action": "resize", "handle": "12345678", "width": 800, "height": 600 }
+
+// Move and resize atomically
+{ "action": "set_bounds", "handle": "12345678", "x": 100, "y": 100, "width": 800, "height": 600 }
+
+// Wait for window to appear (with timeout)
+{ "action": "wait_for", "title": "Notepad", "timeout_ms": 10000 }
 ```
 
 ## Supported Keys
@@ -179,6 +256,11 @@ The server handles common Windows security scenarios:
 | `KEYBOARD_SEQUENCE_DELAY_MS` | `50` | Delay between sequence keys |
 | `MOUSE_MOVE_DELAY_MS` | `10` | Delay after mouse move |
 | `MOUSE_CLICK_DELAY_MS` | `50` | Delay after mouse click |
+| `MCP_WINDOW_TIMEOUT_MS` | `5000` | Default window operation timeout |
+| `MCP_WINDOW_WAITFOR_TIMEOUT_MS` | `30000` | Default wait_for timeout |
+| `MCP_WINDOW_PROPERTY_TIMEOUT_MS` | `100` | Timeout for querying window properties |
+| `MCP_WINDOW_POLLING_INTERVAL_MS` | `250` | Polling interval for wait_for |
+| `MCP_WINDOW_ACTIVATION_MAX_RETRIES` | `3` | Max retries for window activation |
 
 ## Testing
 
@@ -197,20 +279,42 @@ dotnet test --filter "FullyQualifiedName~Integration"
 
 ```
 src/Sbroenne.WindowsMcp/
+├── Automation/             # Desktop automation helpers
+│   ├── ElevationDetector.cs
+│   └── SecureDesktopDetector.cs
+├── Configuration/          # Environment-based configuration
+│   ├── MouseConfiguration.cs
+│   ├── KeyboardConfiguration.cs
+│   └── WindowConfiguration.cs
 ├── Input/                  # Input service implementations
 │   ├── MouseInputService.cs
 │   ├── KeyboardInputService.cs
 │   └── ModifierKeyManager.cs
+├── Logging/                # Structured logging helpers
+│   ├── MouseOperationLogger.cs
+│   ├── KeyboardOperationLogger.cs
+│   └── WindowOperationLogger.cs
 ├── Models/                 # Request/response models
 │   ├── MouseControlRequest.cs
 │   ├── KeyboardControlRequest.cs
+│   ├── WindowManagementRequest.cs
 │   └── ...
 ├── Native/                 # Windows API interop
 │   ├── NativeMethods.cs
-│   └── NativeStructs.cs
+│   ├── NativeConstants.cs
+│   ├── NativeStructs.cs
+│   └── IVirtualDesktopManager.cs
 ├── Tools/                  # MCP tool implementations
 │   ├── MouseControlTool.cs
-│   └── KeyboardControlTool.cs
+│   ├── KeyboardControlTool.cs
+│   └── WindowManagementTool.cs
+├── Window/                 # Window management services
+│   ├── IWindowService.cs
+│   ├── WindowService.cs
+│   ├── IWindowEnumerator.cs
+│   ├── WindowEnumerator.cs
+│   ├── IWindowActivator.cs
+│   └── WindowActivator.cs
 └── Program.cs              # Server entry point
 ```
 

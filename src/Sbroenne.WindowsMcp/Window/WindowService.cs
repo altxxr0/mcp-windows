@@ -1,0 +1,492 @@
+using System.Runtime.Versioning;
+using Sbroenne.WindowsMcp.Automation;
+using Sbroenne.WindowsMcp.Configuration;
+using Sbroenne.WindowsMcp.Logging;
+using Sbroenne.WindowsMcp.Models;
+using Sbroenne.WindowsMcp.Native;
+
+namespace Sbroenne.WindowsMcp.Window;
+
+/// <summary>
+/// Main window management service that orchestrates window operations.
+/// </summary>
+[SupportedOSPlatform("windows")]
+public sealed class WindowService : IWindowService
+{
+    private readonly IWindowEnumerator _enumerator;
+    private readonly IWindowActivator _activator;
+    private readonly ISecureDesktopDetector _secureDesktopDetector;
+    private readonly WindowConfiguration _configuration;
+    private readonly WindowOperationLogger? _logger;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="WindowService"/> class.
+    /// </summary>
+    /// <param name="enumerator">Window enumerator service.</param>
+    /// <param name="activator">Window activator service.</param>
+    /// <param name="secureDesktopDetector">Secure desktop detector.</param>
+    /// <param name="configuration">Window configuration.</param>
+    /// <param name="logger">Optional operation logger.</param>
+    public WindowService(
+        IWindowEnumerator enumerator,
+        IWindowActivator activator,
+        ISecureDesktopDetector secureDesktopDetector,
+        WindowConfiguration configuration,
+        WindowOperationLogger? logger = null)
+    {
+        ArgumentNullException.ThrowIfNull(enumerator);
+        ArgumentNullException.ThrowIfNull(activator);
+        ArgumentNullException.ThrowIfNull(secureDesktopDetector);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        _enumerator = enumerator;
+        _activator = activator;
+        _secureDesktopDetector = secureDesktopDetector;
+        _configuration = configuration;
+        _logger = logger;
+    }
+
+    /// <inheritdoc/>
+    public async Task<WindowManagementResult> ListWindowsAsync(
+        string? filter = null,
+        bool useRegex = false,
+        bool includeAllDesktops = false,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var windows = await _enumerator.EnumerateWindowsAsync(
+                filter, useRegex, includeAllDesktops, cancellationToken);
+
+            _logger?.LogWindowOperation("list", success: true, windowCount: windows.Count);
+
+            return WindowManagementResult.CreateListSuccess(windows);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWindowOperation("list", success: false, errorMessage: ex.Message);
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.EnumerationFailed,
+                $"Failed to enumerate windows: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<WindowManagementResult> FindWindowAsync(
+        string title,
+        bool useRegex = false,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var windows = await _enumerator.FindWindowsAsync(title, useRegex, cancellationToken);
+
+            _logger?.LogWindowOperation("find", success: true, windowCount: windows.Count, filter: title);
+
+            return WindowManagementResult.CreateListSuccess(windows);
+        }
+        catch (System.Text.RegularExpressions.RegexParseException ex)
+        {
+            _logger?.LogWindowOperation("find", success: false, errorMessage: ex.Message);
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.InvalidRegexPattern,
+                $"Invalid regex pattern: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWindowOperation("find", success: false, errorMessage: ex.Message);
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.EnumerationFailed,
+                $"Failed to find windows: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<WindowManagementResult> ActivateWindowAsync(
+        nint handle,
+        CancellationToken cancellationToken = default)
+    {
+        if (handle == IntPtr.Zero)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.InvalidHandle,
+                "Invalid window handle (zero)");
+        }
+
+        // Check for secure desktop
+        if (_secureDesktopDetector.IsSecureDesktopActive())
+        {
+            _logger?.LogWindowOperation("activate", success: false, errorMessage: "Secure desktop active");
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.SecureDesktopActive,
+                "Cannot activate window while secure desktop (UAC prompt or lock screen) is active");
+        }
+
+        // Get current window info to check if elevated
+        var windowInfo = await _enumerator.GetWindowInfoAsync(handle, cancellationToken);
+        if (windowInfo is null)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.WindowNotFound,
+                $"Window with handle {handle} not found");
+        }
+
+        if (windowInfo.IsElevated)
+        {
+            _logger?.LogWindowOperation("activate", success: false, errorMessage: "Elevated window");
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.ElevatedWindowActive,
+                "Cannot activate elevated (admin) window from non-elevated process");
+        }
+
+        // Attempt activation
+        bool success = await _activator.ActivateWindowAsync(handle, useFallbackStrategies: true, cancellationToken);
+
+        if (!success)
+        {
+            _logger?.LogWindowOperation("activate", success: false, handle: handle);
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.ActivationFailed,
+                "Failed to activate window after trying all strategies");
+        }
+
+        // Get updated window info
+        var updatedInfo = await _enumerator.GetWindowInfoAsync(handle, cancellationToken);
+
+        _logger?.LogWindowOperation("activate", success: true, handle: handle, windowTitle: updatedInfo?.Title);
+
+        return WindowManagementResult.CreateWindowSuccess(updatedInfo ?? windowInfo);
+    }
+
+    /// <inheritdoc/>
+    public async Task<WindowManagementResult> GetForegroundWindowAsync(
+        CancellationToken cancellationToken = default)
+    {
+        // Check for secure desktop
+        if (_secureDesktopDetector.IsSecureDesktopActive())
+        {
+            _logger?.LogWindowOperation("get_foreground", success: false, errorMessage: "Secure desktop active");
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.SecureDesktopActive,
+                "Secure desktop (UAC prompt or lock screen) is active");
+        }
+
+        var foregroundHandle = _activator.GetForegroundWindow();
+        if (foregroundHandle == IntPtr.Zero)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.WindowNotFound,
+                "No foreground window found");
+        }
+
+        var windowInfo = await _enumerator.GetWindowInfoAsync(foregroundHandle, cancellationToken);
+        if (windowInfo is null)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.WindowNotFound,
+                "Foreground window info not available");
+        }
+
+        _logger?.LogWindowOperation("get_foreground", success: true, windowTitle: windowInfo.Title);
+
+        return WindowManagementResult.CreateWindowSuccess(windowInfo);
+    }
+
+    /// <inheritdoc/>
+    public async Task<WindowManagementResult> MinimizeWindowAsync(
+        nint handle,
+        CancellationToken cancellationToken = default)
+    {
+        return await ChangeWindowStateAsync(handle, WindowAction.Minimize, NativeConstants.SW_MINIMIZE, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<WindowManagementResult> MaximizeWindowAsync(
+        nint handle,
+        CancellationToken cancellationToken = default)
+    {
+        return await ChangeWindowStateAsync(handle, WindowAction.Maximize, NativeConstants.SW_MAXIMIZE, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<WindowManagementResult> RestoreWindowAsync(
+        nint handle,
+        CancellationToken cancellationToken = default)
+    {
+        return await ChangeWindowStateAsync(handle, WindowAction.Restore, NativeConstants.SW_RESTORE, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<WindowManagementResult> CloseWindowAsync(
+        nint handle,
+        CancellationToken cancellationToken = default)
+    {
+        if (handle == IntPtr.Zero)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.InvalidHandle,
+                "Invalid window handle (zero)");
+        }
+
+        // Verify window exists
+        var windowInfo = await _enumerator.GetWindowInfoAsync(handle, cancellationToken);
+        if (windowInfo is null)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.WindowNotFound,
+                $"Window with handle {handle} not found");
+        }
+
+        // Send WM_CLOSE message
+        bool posted = NativeMethods.PostMessage(handle, NativeConstants.WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+
+        if (!posted)
+        {
+            _logger?.LogWindowOperation("close", success: false, handle: handle, errorMessage: "PostMessage failed");
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.CloseFailed,
+                "Failed to send close message to window");
+        }
+
+        _logger?.LogWindowOperation("close", success: true, handle: handle, windowTitle: windowInfo.Title);
+
+        // Note: We return the window info before close. The window may prompt for save, etc.
+        return WindowManagementResult.CreateWindowSuccess(windowInfo);
+    }
+
+    /// <inheritdoc/>
+    public async Task<WindowManagementResult> MoveWindowAsync(
+        nint handle,
+        int x,
+        int y,
+        CancellationToken cancellationToken = default)
+    {
+        if (handle == IntPtr.Zero)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.InvalidHandle,
+                "Invalid window handle (zero)");
+        }
+
+        var windowInfo = await _enumerator.GetWindowInfoAsync(handle, cancellationToken);
+        if (windowInfo is null)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.WindowNotFound,
+                $"Window with handle {handle} not found");
+        }
+
+        // Use SetWindowPos with SWP_NOSIZE to move without resizing
+        bool success = NativeMethods.SetWindowPos(
+            handle,
+            IntPtr.Zero,
+            x, y,
+            0, 0,  // Ignored with SWP_NOSIZE
+            NativeConstants.SWP_NOSIZE | NativeConstants.SWP_NOZORDER | NativeConstants.SWP_NOACTIVATE);
+
+        if (!success)
+        {
+            _logger?.LogWindowOperation("move", success: false, handle: handle, errorMessage: "SetWindowPos failed");
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.MoveFailed,
+                "Failed to move window");
+        }
+
+        // Get updated window info
+        var updatedInfo = await _enumerator.GetWindowInfoAsync(handle, cancellationToken);
+
+        _logger?.LogWindowOperation("move", success: true, handle: handle, windowTitle: windowInfo.Title);
+
+        return WindowManagementResult.CreateWindowSuccess(updatedInfo ?? windowInfo);
+    }
+
+    /// <inheritdoc/>
+    public async Task<WindowManagementResult> ResizeWindowAsync(
+        nint handle,
+        int width,
+        int height,
+        CancellationToken cancellationToken = default)
+    {
+        if (handle == IntPtr.Zero)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.InvalidHandle,
+                "Invalid window handle (zero)");
+        }
+
+        if (width <= 0 || height <= 0)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.InvalidCoordinates,
+                $"Invalid dimensions: width={width}, height={height}. Both must be positive.");
+        }
+
+        var windowInfo = await _enumerator.GetWindowInfoAsync(handle, cancellationToken);
+        if (windowInfo is null)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.WindowNotFound,
+                $"Window with handle {handle} not found");
+        }
+
+        // Use SetWindowPos with SWP_NOMOVE to resize without moving
+        bool success = NativeMethods.SetWindowPos(
+            handle,
+            IntPtr.Zero,
+            0, 0,  // Ignored with SWP_NOMOVE
+            width, height,
+            NativeConstants.SWP_NOMOVE | NativeConstants.SWP_NOZORDER | NativeConstants.SWP_NOACTIVATE);
+
+        if (!success)
+        {
+            _logger?.LogWindowOperation("resize", success: false, handle: handle, errorMessage: "SetWindowPos failed");
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.ResizeFailed,
+                "Failed to resize window");
+        }
+
+        // Get updated window info
+        var updatedInfo = await _enumerator.GetWindowInfoAsync(handle, cancellationToken);
+
+        _logger?.LogWindowOperation("resize", success: true, handle: handle, windowTitle: windowInfo.Title);
+
+        return WindowManagementResult.CreateWindowSuccess(updatedInfo ?? windowInfo);
+    }
+
+    /// <inheritdoc/>
+    public async Task<WindowManagementResult> SetBoundsAsync(
+        nint handle,
+        WindowBounds bounds,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(bounds);
+
+        if (handle == IntPtr.Zero)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.InvalidHandle,
+                "Invalid window handle (zero)");
+        }
+
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.InvalidCoordinates,
+                $"Invalid dimensions: width={bounds.Width}, height={bounds.Height}. Both must be positive.");
+        }
+
+        var windowInfo = await _enumerator.GetWindowInfoAsync(handle, cancellationToken);
+        if (windowInfo is null)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.WindowNotFound,
+                $"Window with handle {handle} not found");
+        }
+
+        // Use SetWindowPos for atomic move+resize
+        bool success = NativeMethods.SetWindowPos(
+            handle,
+            IntPtr.Zero,
+            bounds.X, bounds.Y,
+            bounds.Width, bounds.Height,
+            NativeConstants.SWP_NOZORDER | NativeConstants.SWP_NOACTIVATE);
+
+        if (!success)
+        {
+            _logger?.LogWindowOperation("set_bounds", success: false, handle: handle, errorMessage: "SetWindowPos failed");
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.MoveFailed,
+                "Failed to set window bounds");
+        }
+
+        // Get updated window info
+        var updatedInfo = await _enumerator.GetWindowInfoAsync(handle, cancellationToken);
+
+        _logger?.LogWindowOperation("set_bounds", success: true, handle: handle, windowTitle: windowInfo.Title);
+
+        return WindowManagementResult.CreateWindowSuccess(updatedInfo ?? windowInfo);
+    }
+
+    /// <inheritdoc/>
+    public async Task<WindowManagementResult> WaitForWindowAsync(
+        string title,
+        bool useRegex = false,
+        int? timeoutMs = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(title))
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.MissingRequiredParameter,
+                "Title is required for wait_for operation");
+        }
+
+        int timeout = timeoutMs ?? _configuration.WaitForTimeoutMs;
+        int pollInterval = 250; // Poll every 250ms
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        while (stopwatch.ElapsedMilliseconds < timeout)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                var windows = await _enumerator.FindWindowsAsync(title, useRegex, cancellationToken);
+                if (windows.Count > 0)
+                {
+                    _logger?.LogWindowOperation("wait_for", success: true, windowTitle: windows[0].Title, filter: title);
+                    return WindowManagementResult.CreateWindowSuccess(windows[0]);
+                }
+            }
+            catch (System.Text.RegularExpressions.RegexParseException ex)
+            {
+                return WindowManagementResult.CreateFailure(
+                    WindowManagementErrorCode.InvalidRegexPattern,
+                    $"Invalid regex pattern: {ex.Message}");
+            }
+
+            await Task.Delay(pollInterval, cancellationToken);
+        }
+
+        _logger?.LogWindowOperation("wait_for", success: false, filter: title, errorMessage: "Timeout");
+
+        return WindowManagementResult.CreateFailure(
+            WindowManagementErrorCode.Timeout,
+            $"Timeout waiting for window matching '{title}' after {timeout}ms");
+    }
+
+    private async Task<WindowManagementResult> ChangeWindowStateAsync(
+        nint handle,
+        WindowAction action,
+        int showCommand,
+        CancellationToken cancellationToken)
+    {
+        if (handle == IntPtr.Zero)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.InvalidHandle,
+                "Invalid window handle (zero)");
+        }
+
+        var windowInfo = await _enumerator.GetWindowInfoAsync(handle, cancellationToken);
+        if (windowInfo is null)
+        {
+            return WindowManagementResult.CreateFailure(
+                WindowManagementErrorCode.WindowNotFound,
+                $"Window with handle {handle} not found");
+        }
+
+        NativeMethods.ShowWindow(handle, showCommand);
+
+        // Brief delay to allow window to settle
+        await Task.Delay(50, cancellationToken);
+
+        // Get updated window info
+        var updatedInfo = await _enumerator.GetWindowInfoAsync(handle, cancellationToken);
+
+        string actionName = action.ToString().ToLowerInvariant();
+        _logger?.LogWindowOperation(actionName, success: true, handle: handle, windowTitle: windowInfo.Title);
+
+        return WindowManagementResult.CreateWindowSuccess(updatedInfo ?? windowInfo);
+    }
+}

@@ -127,3 +127,119 @@ internal struct TOKEN_ELEVATION
     /// <summary>Non-zero if the token is elevated.</summary>
     public int TokenIsElevated;
 }
+
+/// <summary>
+/// Defines a rectangle by the coordinates of its upper-left and lower-right corners.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct RECT
+{
+    /// <summary>The x-coordinate of the upper-left corner of the rectangle.</summary>
+    public int Left;
+
+    /// <summary>The y-coordinate of the upper-left corner of the rectangle.</summary>
+    public int Top;
+
+    /// <summary>The x-coordinate of the lower-right corner of the rectangle.</summary>
+    public int Right;
+
+    /// <summary>The y-coordinate of the lower-right corner of the rectangle.</summary>
+    public int Bottom;
+
+    /// <summary>Gets the width of the rectangle.</summary>
+    public readonly int Width => Right - Left;
+
+    /// <summary>Gets the height of the rectangle.</summary>
+    public readonly int Height => Bottom - Top;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RECT"/> struct.
+    /// </summary>
+    /// <param name="left">The x-coordinate of the upper-left corner.</param>
+    /// <param name="top">The y-coordinate of the upper-left corner.</param>
+    /// <param name="right">The x-coordinate of the lower-right corner.</param>
+    /// <param name="bottom">The y-coordinate of the lower-right corner.</param>
+    public RECT(int left, int top, int right, int bottom)
+    {
+        Left = left;
+        Top = top;
+        Right = right;
+        Bottom = bottom;
+    }
+}
+
+/// <summary>
+/// Contains information about the placement of a window on the screen.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct WINDOWPLACEMENT
+{
+    /// <summary>The length of the structure, in bytes.</summary>
+    public uint Length;
+
+    /// <summary>Specifies flags that control the position of the minimized window and the method by which the window is restored.</summary>
+    public uint Flags;
+
+    /// <summary>The current show state of the window (SW_* values).</summary>
+    public uint ShowCmd;
+
+    /// <summary>The coordinates of the window's upper-left corner when the window is minimized.</summary>
+    public POINT PtMinPosition;
+
+    /// <summary>The coordinates of the window's upper-left corner when the window is maximized.</summary>
+    public POINT PtMaxPosition;
+
+    /// <summary>The window's coordinates when the window is in the restored position.</summary>
+    public RECT RcNormalPosition;
+
+    /// <summary>Gets the size of the structure.</summary>
+    public static uint Size => (uint)Marshal.SizeOf<WINDOWPLACEMENT>();
+
+    /// <summary>
+    /// Creates a new WINDOWPLACEMENT structure with the length field initialized.
+    /// </summary>
+    /// <returns>An initialized WINDOWPLACEMENT structure.</returns>
+    public static WINDOWPLACEMENT Create()
+    {
+        return new WINDOWPLACEMENT { Length = Size };
+    }
+}
+
+/// <summary>
+/// Contains information about a display monitor.
+/// </summary>
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+internal struct MONITORINFO
+{
+    /// <summary>The size of the structure, in bytes.</summary>
+    public uint CbSize;
+
+    /// <summary>A RECT structure that specifies the display monitor rectangle.</summary>
+    public RECT RcMonitor;
+
+    /// <summary>A RECT structure that specifies the work area rectangle of the display monitor.</summary>
+    public RECT RcWork;
+
+    /// <summary>A set of flags that represent attributes of the display monitor.</summary>
+    public uint DwFlags;
+
+    /// <summary>This is the primary display monitor.</summary>
+    public const uint MONITORINFOF_PRIMARY = 0x00000001;
+
+    /// <summary>Gets the size of the structure.</summary>
+    public static uint Size => (uint)Marshal.SizeOf<MONITORINFO>();
+
+    /// <summary>
+    /// Creates a new MONITORINFO structure with the cbSize field initialized.
+    /// </summary>
+    /// <returns>An initialized MONITORINFO structure.</returns>
+    public static MONITORINFO Create()
+    {
+        return new MONITORINFO { CbSize = Size };
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether this is the primary monitor.
+    /// </summary>
+    public readonly bool IsPrimary => (DwFlags & MONITORINFOF_PRIMARY) != 0;
+}

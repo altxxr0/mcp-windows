@@ -165,6 +165,21 @@ An LLM needs to wait for a window to appear (e.g., after launching an applicatio
 - What happens with fullscreen exclusive mode applications (games)?
   - The tool reports the window but operations may fail. Results include appropriate warnings.
 
+- How are UWP/Store apps (running in ApplicationFrameHost) handled?
+  - UWP apps are reported with their visible title. The process name shows "ApplicationFrameHost.exe" but the actual app identity is included in extended info when available.
+
+- How are windows on other virtual desktops handled?
+  - Windows on other virtual desktops are excluded from `list` by default (they are DWM-cloaked). An `include_all_desktops` flag can include them.
+
+- What happens if a window is not responding (hung)?
+  - Window property queries use a 100ms timeout. If a window doesn't respond, its title is reported as "(Not Responding)" and other properties may be unavailable.
+
+- How is DPI scaling handled for coordinates?
+  - All coordinates are in physical screen pixels, consistent with the mouse control feature. This ensures coordinates from window management can be used directly with mouse control.
+
+- How are cloaked/hidden windows handled?
+  - Windows that are DWM-cloaked (hidden by the compositor, e.g., on other virtual desktops) are excluded by default. An `include_cloaked` flag can include them.
+
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
@@ -188,6 +203,11 @@ An LLM needs to wait for a window to appear (e.g., after launching an applicatio
 - **FR-017**: The tool MUST handle windows that change title dynamically (e.g., browser tabs) by querying the current title at operation time.
 - **FR-018**: The `close` action MUST send WM_CLOSE and NOT forcibly terminate the process.
 - **FR-019**: The tool MUST support identifying windows by handle (numeric) or by title search.
+- **FR-020**: The tool SHOULD detect windows on other virtual desktops and report this information when available.
+- **FR-021**: The tool MUST handle UWP/Store applications that run inside ApplicationFrameHost by reporting the container process and including the real app name in the title.
+- **FR-022**: The tool MUST use a timeout (100ms default) when querying window properties to avoid hanging on unresponsive windows, reporting "(Not Responding)" if timeout occurs.
+- **FR-023**: The tool MUST exclude DWM-cloaked windows from the default `list` results (windows on other virtual desktops or hidden by the compositor).
+- **FR-024**: The tool MUST use physical screen coordinates consistent with the mouse control feature for all position reporting.
 
 ### Key Entities
 
@@ -222,3 +242,8 @@ An LLM needs to wait for a window to appear (e.g., after launching an applicatio
 - Window handles (HWND) remain valid for the duration of an operation but may become invalid between operations.
 - Applications respond normally to window messages (WM_CLOSE, etc.).
 - The tool operates on the current user's desktop session only; remote desktops or other sessions are not supported.
+- UWP/Store applications run inside ApplicationFrameHost.exe containers; the tool queries extended attributes to identify the actual app.
+- Virtual desktop APIs (IVirtualDesktopManager) are available on Windows 10/11 for desktop detection.
+- Coordinates are always in physical screen pixels (not DPI-scaled logical units) for consistency with mouse control.
+- Window property queries may timeout on unresponsive applications; the tool uses defensive timeouts to prevent blocking.
+- DWM cloaking is the standard mechanism for hiding windows on other virtual desktops; the tool respects this by default.

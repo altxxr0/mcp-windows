@@ -23,5 +23,10 @@ public enum CaptureTarget
     /// <summary>
     /// Capture a rectangular screen region.
     /// </summary>
-    Region = 3
+    Region = 3,
+
+    /// <summary>
+    /// Capture the entire virtual screen spanning all monitors.
+    /// </summary>
+    AllMonitors = 4
 }

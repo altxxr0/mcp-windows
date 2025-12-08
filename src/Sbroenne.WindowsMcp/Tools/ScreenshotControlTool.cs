@@ -33,7 +33,7 @@ public sealed class ScreenshotControlTool
     /// Captures screenshots of screens, monitors, windows, or regions.
     /// </summary>
     /// <param name="action">The action to perform: 'capture' (default) or 'list_monitors'.</param>
-    /// <param name="target">Capture target: 'primary_screen' (default), 'monitor', 'window', or 'region'.</param>
+    /// <param name="target">Capture target: 'primary_screen' (default), 'monitor', 'window', 'region', or 'all_monitors'.</param>
     /// <param name="monitorIndex">Monitor index for 'monitor' target (0-based).</param>
     /// <param name="windowHandle">Window handle for 'window' target.</param>
     /// <param name="regionX">X coordinate for 'region' target.</param>
@@ -48,7 +48,7 @@ public sealed class ScreenshotControlTool
     public async Task<string> ExecuteAsync(
         [Description("The action to perform. Valid values: 'capture' (take screenshot), 'list_monitors' (enumerate displays). Default: 'capture'")]
         string? action = null,
-        [Description("Capture target. Valid values: 'primary_screen', 'monitor' (by index), 'window' (by handle), 'region' (by coordinates). Default: 'primary_screen'")]
+        [Description("Capture target. Valid values: 'primary_screen', 'monitor' (by index), 'window' (by handle), 'region' (by coordinates), 'all_monitors' (entire virtual screen). Default: 'primary_screen'")]
         string? target = null,
         [Description("Monitor index for 'monitor' target (0-based). Use 'list_monitors' to get available indices.")]
         int? monitorIndex = null,
@@ -81,7 +81,7 @@ public sealed class ScreenshotControlTool
         {
             return SerializeResult(ScreenshotControlResult.Error(
                 ScreenshotErrorCode.InvalidRequest,
-                $"Invalid target: '{target}'. Valid values: 'primary_screen', 'monitor', 'window', 'region'"));
+                $"Invalid target: '{target}'. Valid values: 'primary_screen', 'monitor', 'window', 'region', 'all_monitors'"));
         }
 
         // Build region if target is region
@@ -148,6 +148,7 @@ public sealed class ScreenshotControlTool
             "monitor" => CaptureTarget.Monitor,
             "window" => CaptureTarget.Window,
             "region" => CaptureTarget.Region,
+            "all_monitors" or "allmonitors" => CaptureTarget.AllMonitors,
             _ => null
         };
     }

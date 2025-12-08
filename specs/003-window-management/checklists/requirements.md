@@ -43,13 +43,23 @@ All checklist items pass. The specification is ready for `/speckit.clarify` or `
 
 4. **Close Behavior**: Sends WM_CLOSE message, allows application to show save prompts. Does NOT force-terminate.
 
-5. **Timeout Defaults**: 30 seconds for `wait_for`, 5 seconds for general operations.
+5. **Timeout Defaults**: 30 seconds for `wait_for`, 5 seconds for general operations, 100ms for window property queries.
 
 6. **Error Handling**: Same patterns as mouse/keyboard control (elevated process detection, secure desktop detection, structured JSON logging to stderr).
 
 7. **Case Sensitivity**: Title matching is case-insensitive by default.
 
-8. **Coordinate System**: Uses screen coordinates consistent with mouse control. Multi-monitor coordinates may be negative.
+8. **Coordinate System**: Uses physical screen coordinates consistent with mouse control. Multi-monitor coordinates may be negative.
+
+9. **UWP/Store Apps**: ApplicationFrameHost containers are handled by reporting container process and including real app identity in extended info.
+
+10. **Virtual Desktops**: Windows on other virtual desktops are excluded by default (DWM-cloaked). `include_all_desktops` flag available.
+
+11. **Hung Windows**: 100ms timeout for window property queries. Unresponsive windows reported with "(Not Responding)" title.
+
+12. **Cloaked Windows**: DWM-cloaked windows excluded by default. `include_cloaked` flag available for advanced use.
+
+13. **DPI Awareness**: All coordinates in physical pixels, not DPI-scaled logical units, for mouse control compatibility.
 
 **Relationship to Other Features:**
 - **Mouse Control**: Window management provides coordinates for clicking; mouse control performs the clicks.

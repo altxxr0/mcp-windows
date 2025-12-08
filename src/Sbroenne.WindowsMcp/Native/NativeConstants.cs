@@ -461,4 +461,170 @@ internal static class NativeConstants
     public const int WHEEL_DELTA = 120;
 
     #endregion
+
+    #region ShowWindow Commands (SW_*)
+
+    /// <summary>Hides the window and activates another window.</summary>
+    public const int SW_HIDE = 0;
+
+    /// <summary>Activates and displays a window in its normal size and position.</summary>
+    public const int SW_SHOWNORMAL = 1;
+
+    /// <summary>Activates the window and displays it as a minimized window.</summary>
+    public const int SW_SHOWMINIMIZED = 2;
+
+    /// <summary>Activates the window and displays it as a maximized window.</summary>
+    public const int SW_SHOWMAXIMIZED = 3;
+
+    /// <summary>Maximizes the specified window.</summary>
+    public const int SW_MAXIMIZE = 3;
+
+    /// <summary>Displays a window in its most recent size and position without activating.</summary>
+    public const int SW_SHOWNOACTIVATE = 4;
+
+    /// <summary>Activates the window and displays it in its current size and position.</summary>
+    public const int SW_SHOW = 5;
+
+    /// <summary>Minimizes the specified window and activates the next top-level window.</summary>
+    public const int SW_MINIMIZE = 6;
+
+    /// <summary>Displays the window as a minimized window without activating.</summary>
+    public const int SW_SHOWMINNOACTIVE = 7;
+
+    /// <summary>Displays the window in its current size and position without activating.</summary>
+    public const int SW_SHOWNA = 8;
+
+    /// <summary>Activates and displays the window in its original size and position.</summary>
+    public const int SW_RESTORE = 9;
+
+    /// <summary>Sets the show state based on the SW_ value specified in STARTUPINFO.</summary>
+    public const int SW_SHOWDEFAULT = 10;
+
+    /// <summary>Minimizes a window even if the thread is not responding.</summary>
+    public const int SW_FORCEMINIMIZE = 11;
+
+    #endregion
+
+    #region SetWindowPos Flags (SWP_*)
+
+    /// <summary>Retains the current size (ignores cx and cy parameters).</summary>
+    public const uint SWP_NOSIZE = 0x0001;
+
+    /// <summary>Retains the current position (ignores X and Y parameters).</summary>
+    public const uint SWP_NOMOVE = 0x0002;
+
+    /// <summary>Retains the current Z order (ignores hWndInsertAfter).</summary>
+    public const uint SWP_NOZORDER = 0x0004;
+
+    /// <summary>Does not redraw changes.</summary>
+    public const uint SWP_NOREDRAW = 0x0008;
+
+    /// <summary>Does not activate the window.</summary>
+    public const uint SWP_NOACTIVATE = 0x0010;
+
+    /// <summary>Applies new frame styles set using SetWindowLong.</summary>
+    public const uint SWP_FRAMECHANGED = 0x0020;
+
+    /// <summary>Displays the window.</summary>
+    public const uint SWP_SHOWWINDOW = 0x0040;
+
+    /// <summary>Hides the window.</summary>
+    public const uint SWP_HIDEWINDOW = 0x0080;
+
+    /// <summary>Discards the entire contents of the client area.</summary>
+    public const uint SWP_NOCOPYBITS = 0x0100;
+
+    /// <summary>Does not change the owner window's position in the Z order.</summary>
+    public const uint SWP_NOOWNERZORDER = 0x0200;
+
+    /// <summary>Prevents the window from receiving WM_WINDOWPOSCHANGING.</summary>
+    public const uint SWP_NOSENDCHANGING = 0x0400;
+
+    /// <summary>Draws a frame around the window.</summary>
+    public const uint SWP_DRAWFRAME = SWP_FRAMECHANGED;
+
+    /// <summary>Same as SWP_NOOWNERZORDER.</summary>
+    public const uint SWP_NOREPOSITION = SWP_NOOWNERZORDER;
+
+    /// <summary>Prevents generation of WM_SYNCPAINT.</summary>
+    public const uint SWP_DEFERERASE = 0x2000;
+
+    /// <summary>If the calling thread and the thread that owns the window are attached to different input queues, the system posts the request to the thread that owns the window.</summary>
+    public const uint SWP_ASYNCWINDOWPOS = 0x4000;
+
+    #endregion
+
+    #region DWM Window Attributes (DWMWA_*)
+
+    /// <summary>Use with DwmGetWindowAttribute. Gets the extended frame bounds rectangle in screen space.</summary>
+    public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
+
+    /// <summary>Use with DwmGetWindowAttribute. Gets the cloaked state of the window.</summary>
+    public const int DWMWA_CLOAKED = 14;
+
+    /// <summary>The window was cloaked by its owner application.</summary>
+    public const int DWM_CLOAKED_APP = 0x00000001;
+
+    /// <summary>The window was cloaked by the Shell.</summary>
+    public const int DWM_CLOAKED_SHELL = 0x00000002;
+
+    /// <summary>The cloak value was inherited from its owner window.</summary>
+    public const int DWM_CLOAKED_INHERITED = 0x00000004;
+
+    #endregion
+
+    #region Window Messages (WM_*)
+
+    /// <summary>Sent as a signal that a window or an application should terminate.</summary>
+    public const uint WM_CLOSE = 0x0010;
+
+    /// <summary>Copies the text that corresponds to a window into a buffer provided by the caller.</summary>
+    public const uint WM_GETTEXT = 0x000D;
+
+    /// <summary>Determines the length, in characters, of the text associated with a window.</summary>
+    public const uint WM_GETTEXTLENGTH = 0x000E;
+
+    /// <summary>A null message (no operation).</summary>
+    public const uint WM_NULL = 0x0000;
+
+    #endregion
+
+    #region SendMessageTimeout Flags (SMTO_*)
+
+    /// <summary>The calling thread is not prevented from processing other requests while waiting.</summary>
+    public const uint SMTO_NORMAL = 0x0000;
+
+    /// <summary>Prevents the calling thread from processing any other requests until the function returns.</summary>
+    public const uint SMTO_BLOCK = 0x0001;
+
+    /// <summary>The function returns without waiting for the timeout period to elapse if the receiving thread appears to not respond.</summary>
+    public const uint SMTO_ABORTIFHUNG = 0x0002;
+
+    /// <summary>The function does not enforce the timeout period as long as the receiving thread is processing messages.</summary>
+    public const uint SMTO_NOTIMEOUTIFNOTHUNG = 0x0008;
+
+    /// <summary>The function should return 0 if the receiving window is destroyed or its owning thread dies while the message is being processed.</summary>
+    public const uint SMTO_ERRORONEXIT = 0x0020;
+
+    #endregion
+
+    #region Monitor Flags (MONITOR_*)
+
+    /// <summary>Returns NULL if no display monitor intersects the window.</summary>
+    public const uint MONITOR_DEFAULTTONULL = 0x00000000;
+
+    /// <summary>Returns a handle to the primary display monitor if no display monitor intersects the window.</summary>
+    public const uint MONITOR_DEFAULTTOPRIMARY = 0x00000001;
+
+    /// <summary>Returns a handle to the display monitor that is nearest to the window.</summary>
+    public const uint MONITOR_DEFAULTTONEAREST = 0x00000002;
+
+    #endregion
+
+    #region AllowSetForegroundWindow
+
+    /// <summary>Enables all processes to set the foreground window.</summary>
+    public const int ASFW_ANY = -1;
+
+    #endregion
 }

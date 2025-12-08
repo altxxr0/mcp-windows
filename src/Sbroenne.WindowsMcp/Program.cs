@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sbroenne.WindowsMcp.Automation;
@@ -6,6 +6,7 @@ using Sbroenne.WindowsMcp.Configuration;
 using Sbroenne.WindowsMcp.Input;
 using Sbroenne.WindowsMcp.Logging;
 using Sbroenne.WindowsMcp.Tools;
+using Sbroenne.WindowsMcp.Window;
 using Serilog;
 using Serilog.Formatting.Json;
 
@@ -29,6 +30,7 @@ try
     // Register configuration from environment variables
     builder.Services.AddSingleton(_ => MouseConfiguration.FromEnvironment());
     builder.Services.AddSingleton(_ => KeyboardConfiguration.FromEnvironment());
+    builder.Services.AddSingleton(_ => WindowConfiguration.FromEnvironment());
 
     // Register application services
     builder.Services.AddSingleton<IMouseInputService, MouseInputService>();
@@ -37,6 +39,12 @@ try
     builder.Services.AddSingleton<ISecureDesktopDetector, SecureDesktopDetector>();
     builder.Services.AddSingleton<MouseOperationLogger>();
     builder.Services.AddSingleton<KeyboardOperationLogger>();
+    builder.Services.AddSingleton<WindowOperationLogger>();
+
+    // Register window management services
+    builder.Services.AddSingleton<IWindowEnumerator, WindowEnumerator>();
+    builder.Services.AddSingleton<IWindowActivator, WindowActivator>();
+    builder.Services.AddSingleton<IWindowService, WindowService>();
 
     // Configure MCP server with stdio transport
     builder.Services
@@ -47,11 +55,12 @@ try
                 Name = "sbroenne.windows-mcp",
                 Version = "1.0.0",
             };
-            options.ServerInstructions = "MCP server for Windows mouse and keyboard control operations. Use the mouse_control tool to move the cursor, click, drag, and scroll. Use the keyboard_control tool to type text, press keys, and perform keyboard shortcuts.";
+            options.ServerInstructions = "MCP server for Windows automation including mouse, keyboard, and window management. Use the mouse_control tool to move the cursor, click, drag, and scroll. Use the keyboard_control tool to type text, press keys, and perform keyboard shortcuts. Use the window_management tool to list, find, activate, and control windows.";
         })
         .WithStdioServerTransport()
         .WithTools<MouseControlTool>()
-        .WithTools<KeyboardControlTool>();
+        .WithTools<KeyboardControlTool>()
+        .WithTools<WindowManagementTool>();
 
     var host = builder.Build();
     await host.RunAsync();

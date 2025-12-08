@@ -180,4 +180,253 @@ internal static partial class NativeMethods
     internal static partial nint GetForegroundWindow();
 
     #endregion
+
+    #region Window Management APIs
+
+    /// <summary>
+    /// Delegate for EnumWindows callback.
+    /// </summary>
+    /// <param name="hWnd">Handle to a top-level window.</param>
+    /// <param name="lParam">Application-defined value.</param>
+    /// <returns>True to continue enumeration, false to stop.</returns>
+    internal delegate bool EnumWindowsProc(nint hWnd, nint lParam);
+
+    /// <summary>
+    /// Enumerates all top-level windows on the screen.
+    /// </summary>
+    /// <param name="lpEnumFunc">Callback function for each window.</param>
+    /// <param name="lParam">Application-defined value to pass to callback.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool EnumWindows(EnumWindowsProc lpEnumFunc, nint lParam);
+
+    /// <summary>
+    /// Retrieves the name of the class to which the specified window belongs.
+    /// </summary>
+    /// <param name="hWnd">Handle to the window.</param>
+    /// <param name="lpClassName">Buffer to receive the class name.</param>
+    /// <param name="nMaxCount">Maximum number of characters to copy.</param>
+    /// <returns>Number of characters copied, or zero on failure.</returns>
+    [LibraryImport("user32.dll", EntryPoint = "GetClassNameW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    internal static partial int GetClassName(nint hWnd, [Out] char[] lpClassName, int nMaxCount);
+
+    /// <summary>
+    /// Determines the visibility state of the specified window.
+    /// </summary>
+    /// <param name="hWnd">Handle to the window to test.</param>
+    /// <returns>True if the window is visible, false otherwise.</returns>
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool IsWindowVisible(nint hWnd);
+
+    /// <summary>
+    /// Retrieves the dimensions of the bounding rectangle of the specified window.
+    /// </summary>
+    /// <param name="hWnd">Handle to the window.</param>
+    /// <param name="lpRect">Pointer to a RECT structure that receives the coordinates.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool GetWindowRect(nint hWnd, out RECT lpRect);
+
+    /// <summary>
+    /// Retrieves the show state and positions of a window.
+    /// </summary>
+    /// <param name="hWnd">Handle to the window.</param>
+    /// <param name="lpwndpl">Pointer to WINDOWPLACEMENT structure.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool GetWindowPlacement(nint hWnd, ref WINDOWPLACEMENT lpwndpl);
+
+    /// <summary>
+    /// Determines whether the specified window is minimized (iconic).
+    /// </summary>
+    /// <param name="hWnd">Handle to the window to test.</param>
+    /// <returns>True if the window is minimized, false otherwise.</returns>
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool IsIconic(nint hWnd);
+
+    /// <summary>
+    /// Determines whether a window is maximized.
+    /// </summary>
+    /// <param name="hWnd">Handle to the window to test.</param>
+    /// <returns>True if the window is maximized, false otherwise.</returns>
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool IsZoomed(nint hWnd);
+
+    /// <summary>
+    /// Brings the thread that created the specified window into the foreground and activates the window.
+    /// </summary>
+    /// <param name="hWnd">Handle to the window to activate.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool SetForegroundWindow(nint hWnd);
+
+    /// <summary>
+    /// Brings the specified window to the top of the Z order.
+    /// </summary>
+    /// <param name="hWnd">Handle to the window to bring to the top.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool BringWindowToTop(nint hWnd);
+
+    /// <summary>
+    /// Enables the specified process to set the foreground window.
+    /// </summary>
+    /// <param name="dwProcessId">The process identifier to allow, or ASFW_ANY (-1) to allow any process.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool AllowSetForegroundWindow(int dwProcessId);
+
+    /// <summary>
+    /// Attaches or detaches the input processing mechanism of one thread to that of another thread.
+    /// </summary>
+    /// <param name="idAttach">Thread to attach.</param>
+    /// <param name="idAttachTo">Thread to attach to.</param>
+    /// <param name="fAttach">True to attach, false to detach.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool AttachThreadInput(uint idAttach, uint idAttachTo, [MarshalAs(UnmanagedType.Bool)] bool fAttach);
+
+    /// <summary>
+    /// Sets the specified window's show state.
+    /// </summary>
+    /// <param name="hWnd">Handle to the window.</param>
+    /// <param name="nCmdShow">Show command (SW_* constants).</param>
+    /// <returns>True if the window was previously visible, false otherwise.</returns>
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool ShowWindow(nint hWnd, int nCmdShow);
+
+    /// <summary>
+    /// Changes the size, position, and Z order of a window.
+    /// </summary>
+    /// <param name="hWnd">Handle to the window.</param>
+    /// <param name="hWndInsertAfter">Z-order position handle or special value.</param>
+    /// <param name="X">New x-coordinate of the window.</param>
+    /// <param name="Y">New y-coordinate of the window.</param>
+    /// <param name="cx">New width of the window.</param>
+    /// <param name="cy">New height of the window.</param>
+    /// <param name="uFlags">Window sizing and positioning flags (SWP_* constants).</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool SetWindowPos(nint hWnd, nint hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+    /// <summary>
+    /// Posts a message to the message queue of the specified thread.
+    /// </summary>
+    /// <param name="hWnd">Handle to the window whose window procedure is to receive the message.</param>
+    /// <param name="Msg">The message to be posted.</param>
+    /// <param name="wParam">Additional message-specific information.</param>
+    /// <param name="lParam">Additional message-specific information.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool PostMessage(nint hWnd, uint Msg, nint wParam, nint lParam);
+
+    /// <summary>
+    /// Sends a message to the specified window with timeout.
+    /// </summary>
+    /// <param name="hWnd">Handle to the window.</param>
+    /// <param name="Msg">The message to send.</param>
+    /// <param name="wParam">Additional message-specific information.</param>
+    /// <param name="lParam">Buffer for return value (for WM_GETTEXT, etc.).</param>
+    /// <param name="fuFlags">Send message flags (SMTO_* constants).</param>
+    /// <param name="uTimeout">Timeout in milliseconds.</param>
+    /// <param name="lpdwResult">Receives the result of the message processing.</param>
+    /// <returns>Non-zero if successful, zero on failure or timeout.</returns>
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageTimeoutW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    internal static partial nint SendMessageTimeout(
+        nint hWnd,
+        uint Msg,
+        nint wParam,
+        [Out] char[] lParam,
+        uint fuFlags,
+        uint uTimeout,
+        out nint lpdwResult);
+
+    /// <summary>
+    /// Retrieves a handle to the display monitor that contains the largest part of a window.
+    /// </summary>
+    /// <param name="hwnd">Handle to the window.</param>
+    /// <param name="dwFlags">Flags for determining monitor selection when window doesn't intersect any monitor.</param>
+    /// <returns>Handle to the monitor, or NULL.</returns>
+    [LibraryImport("user32.dll")]
+    internal static partial nint MonitorFromWindow(nint hwnd, uint dwFlags);
+
+    /// <summary>
+    /// Retrieves information about a display monitor.
+    /// </summary>
+    /// <param name="hMonitor">Handle to the display monitor.</param>
+    /// <param name="lpmi">Pointer to MONITORINFO structure.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    [LibraryImport("user32.dll", EntryPoint = "GetMonitorInfoW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool GetMonitorInfo(nint hMonitor, ref MONITORINFO lpmi);
+
+    /// <summary>
+    /// Enumerates display monitors.
+    /// </summary>
+    /// <param name="hdc">Handle to a display device context (can be NULL).</param>
+    /// <param name="lprcClip">Pointer to a clipping rectangle (can be NULL for all monitors).</param>
+    /// <param name="lpfnEnum">Callback function for each monitor.</param>
+    /// <param name="dwData">Application-defined data to pass to callback.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool EnumDisplayMonitors(nint hdc, nint lprcClip, MonitorEnumProc lpfnEnum, nint dwData);
+
+    /// <summary>
+    /// Delegate for EnumDisplayMonitors callback.
+    /// </summary>
+    /// <param name="hMonitor">Handle to display monitor.</param>
+    /// <param name="hdcMonitor">Handle to monitor DC (can be NULL).</param>
+    /// <param name="lprcMonitor">Pointer to monitor intersection rectangle.</param>
+    /// <param name="dwData">Application-defined data.</param>
+    /// <returns>True to continue enumeration, false to stop.</returns>
+    internal delegate bool MonitorEnumProc(nint hMonitor, nint hdcMonitor, ref RECT lprcMonitor, nint dwData);
+
+    /// <summary>
+    /// Retrieves the identifier of the thread that created the specified window.
+    /// </summary>
+    /// <returns>Thread identifier of the calling thread.</returns>
+    [LibraryImport("kernel32.dll")]
+    internal static partial uint GetCurrentThreadId();
+
+    #endregion
+
+    #region DWM APIs
+
+    /// <summary>
+    /// Retrieves the current value of a specified Desktop Window Manager (DWM) attribute.
+    /// </summary>
+    /// <param name="hwnd">The handle to the window.</param>
+    /// <param name="dwAttribute">The attribute to retrieve (DWMWA_* constant).</param>
+    /// <param name="pvAttribute">Pointer to receive the attribute value.</param>
+    /// <param name="cbAttribute">Size of the pvAttribute buffer in bytes.</param>
+    /// <returns>S_OK if successful, or an error code.</returns>
+    [LibraryImport("dwmapi.dll")]
+    internal static partial int DwmGetWindowAttribute(nint hwnd, int dwAttribute, out RECT pvAttribute, int cbAttribute);
+
+    /// <summary>
+    /// Retrieves the current cloaked state of a window.
+    /// </summary>
+    /// <param name="hwnd">The handle to the window.</param>
+    /// <param name="dwAttribute">The attribute to retrieve (DWMWA_CLOAKED).</param>
+    /// <param name="pvAttribute">Pointer to receive the cloaked state value.</param>
+    /// <param name="cbAttribute">Size of the pvAttribute buffer in bytes.</param>
+    /// <returns>S_OK if successful, or an error code.</returns>
+    [LibraryImport("dwmapi.dll", EntryPoint = "DwmGetWindowAttribute")]
+    internal static partial int DwmGetWindowAttributeInt(nint hwnd, int dwAttribute, out int pvAttribute, int cbAttribute);
+
+    #endregion
 }

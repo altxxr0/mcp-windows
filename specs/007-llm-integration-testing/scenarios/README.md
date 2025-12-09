@@ -6,14 +6,17 @@ This directory contains all test scenario definitions for the LLM-Based Integrat
 
 | Category | Count | ID Range |
 |----------|-------|----------|
-| MOUSE | 12 | TC-MOUSE-001 to TC-MOUSE-012 |
-| KEYBOARD | 15 | TC-KEYBOARD-001 to TC-KEYBOARD-015 |
-| WINDOW | 14 | TC-WINDOW-001 to TC-WINDOW-014 |
-| SCREENSHOT | 10 | TC-SCREENSHOT-001 to TC-SCREENSHOT-010 |
-| VISUAL | 5 | TC-VISUAL-001 to TC-VISUAL-005 |
+| MOUSE | 13 | TC-MOUSE-001 to TC-MOUSE-012, TC-MOUSE-014 |
+| KEYBOARD | 16 | TC-KEYBOARD-001 to TC-KEYBOARD-015, TC-KEYBOARD-016 |
+| WINDOW | 15 | TC-WINDOW-001 to TC-WINDOW-014, TC-WINDOW-016 |
+| SCREENSHOT | 13 | TC-SCREENSHOT-001 to TC-SCREENSHOT-010, TC-SCREENSHOT-001a/b, TC-SCREENSHOT-011 |
+| VISUAL | 7 | TC-VISUAL-001 to TC-VISUAL-006, TC-VISUAL-001a |
 | WORKFLOW | 10 | TC-WORKFLOW-001 to TC-WORKFLOW-010 |
-| ERROR | 8 | TC-ERROR-001 to TC-ERROR-008 |
-| **Total** | **74** | |
+| ERROR | 10 | TC-ERROR-001 to TC-ERROR-008, TC-ERROR-009, TC-ERROR-010 |
+| **Total** | **84** | |
+
+> **New in v1.2**: Added 4 all-monitors scenarios (TC-SCREENSHOT-001a/b, TC-VISUAL-001a, TC-VISUAL-006)
+> **New in v1.3**: Added 6 edge case scenarios (TC-ERROR-009/010, TC-MOUSE-014, TC-SCREENSHOT-011, TC-KEYBOARD-016, TC-WINDOW-016)
 
 ## Scenarios by Category
 
@@ -33,6 +36,7 @@ This directory contains all test scenario definitions for the LLM-Based Integrat
 | [TC-MOUSE-010](TC-MOUSE-010.md) | Horizontal scroll | P3 |
 | [TC-MOUSE-011](TC-MOUSE-011.md) | Mouse drag operation | P2 |
 | [TC-MOUSE-012](TC-MOUSE-012.md) | Click with modifier key | P2 |
+| [TC-MOUSE-014](TC-MOUSE-014.md) | **Drag with right/middle button** ⭐ | P2 |
 
 ### Keyboard Control (15 scenarios)
 
@@ -53,6 +57,7 @@ This directory contains all test scenario definitions for the LLM-Based Integrat
 | [TC-KEYBOARD-013](TC-KEYBOARD-013.md) | Key sequence/combo | P2 |
 | [TC-KEYBOARD-014](TC-KEYBOARD-014.md) | Arrow key navigation | P2 |
 | [TC-KEYBOARD-015](TC-KEYBOARD-015.md) | Get keyboard layout | P3 |
+| [TC-KEYBOARD-016](TC-KEYBOARD-016.md) | **Type very long text (5000+ chars)** ⭐ | P2 |
 
 ### Window Management (14 scenarios)
 
@@ -72,12 +77,15 @@ This directory contains all test scenario definitions for the LLM-Based Integrat
 | [TC-WINDOW-012](TC-WINDOW-012.md) | Close window | P2 |
 | [TC-WINDOW-013](TC-WINDOW-013.md) | Wait for window to appear | P2 |
 | [TC-WINDOW-014](TC-WINDOW-014.md) | Filter windows by process name | P2 |
+| [TC-WINDOW-016](TC-WINDOW-016.md) | **Resize with zero/negative dimensions** ⭐ | P2 |
 
-### Screenshot Capture (10 scenarios)
+### Screenshot Capture (12 scenarios)
 
 | ID | Description | Priority |
 |----|-------------|----------|
 | [TC-SCREENSHOT-001](TC-SCREENSHOT-001.md) | Capture primary screen | P1 |
+| [TC-SCREENSHOT-001a](TC-SCREENSHOT-001a.md) | **All-monitors composite capture** ⭐ | P1 |
+| [TC-SCREENSHOT-001b](TC-SCREENSHOT-001b.md) | **Region identification with metadata** ⭐ | P1 |
 | [TC-SCREENSHOT-002](TC-SCREENSHOT-002.md) | List available monitors | P1 |
 | [TC-SCREENSHOT-003](TC-SCREENSHOT-003.md) | Capture specific monitor by index | P1 |
 | [TC-SCREENSHOT-004](TC-SCREENSHOT-004.md) | Capture rectangular region | P2 |
@@ -87,16 +95,21 @@ This directory contains all test scenario definitions for the LLM-Based Integrat
 | [TC-SCREENSHOT-008](TC-SCREENSHOT-008.md) | Capture region with zero dimensions | P3 |
 | [TC-SCREENSHOT-009](TC-SCREENSHOT-009.md) | Capture region extending beyond screen | P3 |
 | [TC-SCREENSHOT-010](TC-SCREENSHOT-010.md) | Rapid consecutive captures | P3 |
+| [TC-SCREENSHOT-011](TC-SCREENSHOT-011.md) | **Capture minimized window** ⭐ | P2 |
 
-### Visual Verification (5 scenarios)
+> ⭐ = New all-monitors scenarios added in v1.2; edge case scenarios added in v1.3
+
+### Visual Verification (7 scenarios)
 
 | ID | Description | Priority |
 |----|-------------|----------|
 | [TC-VISUAL-001](TC-VISUAL-001.md) | Detect window position change | P1 |
+| [TC-VISUAL-001a](TC-VISUAL-001a.md) | **Cross-monitor window movement detection** ⭐ | P1 |
 | [TC-VISUAL-002](TC-VISUAL-002.md) | Detect text content change | P1 |
 | [TC-VISUAL-003](TC-VISUAL-003.md) | Detect no change - negative test | P2 |
 | [TC-VISUAL-004](TC-VISUAL-004.md) | Detect button state change | P2 |
 | [TC-VISUAL-005](TC-VISUAL-005.md) | Detect window close | P2 |
+| [TC-VISUAL-006](TC-VISUAL-006.md) | **Secondary monitor change detection** ⭐ | P2 |
 
 ### Workflow Tests (10 scenarios)
 
@@ -113,7 +126,7 @@ This directory contains all test scenario definitions for the LLM-Based Integrat
 | [TC-WORKFLOW-009](TC-WORKFLOW-009.md) | Drag and drop simulation | P2 |
 | [TC-WORKFLOW-010](TC-WORKFLOW-010.md) | Full UI interaction sequence | P2 |
 
-### Error Handling (8 scenarios)
+### Error Handling (10 scenarios)
 
 | ID | Description | Priority |
 |----|-------------|----------|
@@ -125,14 +138,16 @@ This directory contains all test scenario definitions for the LLM-Based Integrat
 | [TC-ERROR-006](TC-ERROR-006.md) | Close already-closed window | P2 |
 | [TC-ERROR-007](TC-ERROR-007.md) | Invalid key name | P2 |
 | [TC-ERROR-008](TC-ERROR-008.md) | Keyboard combo with invalid modifier | P2 |
+| [TC-ERROR-009](TC-ERROR-009.md) | **Key already held error** ⭐ | P2 |
+| [TC-ERROR-010](TC-ERROR-010.md) | **Key not held error** ⭐ | P2 |
 
 ## Priority Distribution
 
 | Priority | Count | Percentage |
 |----------|-------|------------|
-| P1 (Critical) | 23 | 31% |
-| P2 (Important) | 44 | 59% |
-| P3 (Nice-to-have) | 7 | 10% |
+| P1 (Critical) | 26 | 33% |
+| P2 (Important) | 45 | 58% |
+| P3 (Nice-to-have) | 7 | 9% |
 
 ## Quick Links
 

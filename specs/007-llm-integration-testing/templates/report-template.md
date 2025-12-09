@@ -20,6 +20,34 @@
 
 ---
 
+## Visual Diff Summary
+
+| Metric | Value |
+|--------|-------|
+| **Tests with Visual Diff** | {N} |
+| **Total Screenshots Compared** | {N} |
+| **Avg Change Percentage** | {X.XX%} |
+| **Max Change Percentage** | {X.XX%} ({TC-ID}) |
+| **Significant Changes Detected** | {N} |
+| **Unexpected Changes** | {N} |
+
+### Tests with Highest Visual Change
+
+| Test ID | Change % | Changed Pixels | Description |
+|---------|----------|----------------|-------------|
+| {TC-ID} | {X.XX%} | {N} | {Brief description of change} |
+| {TC-ID} | {X.XX%} | {N} | {Brief description of change} |
+| {TC-ID} | {X.XX%} | {N} | {Brief description of change} |
+
+### Cross-Monitor Activity
+
+| Test ID | Monitors Active | Description |
+|---------|-----------------|-------------|
+| {TC-ID} | Primary, Secondary | Window moved from primary to secondary |
+| {TC-ID} | Secondary only | Changes isolated to secondary monitor |
+
+---
+
 ## Results by Category
 
 ### Mouse Control (TC-MOUSE-*)
@@ -58,23 +86,29 @@
 
 ### Screenshot Capture (TC-SCREENSHOT-*)
 
-| Test ID | Description | Status | Duration |
-|---------|-------------|--------|----------|
-| TC-SCREENSHOT-001 | Capture primary screen | ✅ PASS | 0.8s |
-| ... | ... | ... | ... |
+| Test ID | Description | Status | Duration | Monitors |
+|---------|-------------|--------|----------|----------|
+| TC-SCREENSHOT-001 | Capture primary screen | ✅ PASS | 0.8s | 1 |
+| TC-SCREENSHOT-001a | All-monitors composite capture | ✅ PASS | 1.2s | {N} |
+| TC-SCREENSHOT-001b | Region identification with metadata | ✅ PASS | 1.5s | {N} |
+| ... | ... | ... | ... | ... |
 
-**Category Summary**: {X}/{Y} passed
+**Category Summary**: {X}/{Y} passed  
+**Composite Captures**: {N} tests used all-monitors composite screenshots
 
 ---
 
 ### Visual Verification (TC-VISUAL-*)
 
-| Test ID | Description | Status | Duration |
-|---------|-------------|--------|----------|
-| TC-VISUAL-001 | Detect window position change | ✅ PASS | 4.2s |
-| ... | ... | ... | ... |
+| Test ID | Description | Status | Duration | Change % |
+|---------|-------------|--------|----------|----------|
+| TC-VISUAL-001 | Detect window position change | ✅ PASS | 4.2s | 5.2% |
+| TC-VISUAL-001a | Cross-monitor window movement | ✅ PASS | 6.1s | 12.3% |
+| TC-VISUAL-006 | Secondary monitor change detection | ✅ PASS | 3.8s | 3.1% |
+| ... | ... | ... | ... | ... |
 
-**Category Summary**: {X}/{Y} passed
+**Category Summary**: {X}/{Y} passed  
+**Average Visual Change**: {X.XX%}
 
 ---
 
@@ -111,7 +145,14 @@
 **Expected**: {What should have happened}  
 **Actual**: {What actually happened}
 
-**Screenshots**: [before](TC-ID/before.png) | [after](TC-ID/after.png)
+**Visual Diff**:  
+- Change Percentage: {X.XX%}  
+- Changed Pixels: {N}  
+- Threshold: {1.00%}  
+- Significant: ✅ Yes / ❌ No
+
+**Screenshots**: [before](TC-ID/step-1-before.png) | [after](TC-ID/step-1-after.png) | [diff](TC-ID/step-1-diff.png)  
+**Metadata**: [before-meta](TC-ID/step-1-before-meta.json) | [after-meta](TC-ID/step-1-after-meta.json)
 
 **Suggested Action**: {What to investigate or fix}
 

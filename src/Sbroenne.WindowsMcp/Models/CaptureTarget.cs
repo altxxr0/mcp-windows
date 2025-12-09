@@ -23,5 +23,11 @@ public enum CaptureTarget
     /// <summary>
     /// Capture a rectangular screen region.
     /// </summary>
-    Region = 3
+    Region = 3,
+
+    /// <summary>
+    /// Capture all connected monitors as a single composite image.
+    /// Uses the virtual screen bounds to capture the entire multi-monitor desktop.
+    /// </summary>
+    AllMonitors = 4
 }

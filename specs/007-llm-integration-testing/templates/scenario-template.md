@@ -61,8 +61,12 @@
 {Capture initial state}
 
 **MCP Tool**: `screenshot_control`  
-**Parameters**: `target="monitor"`, `monitorIndex={secondary}`, `includeCursor=true`  
-**Save As**: `before.png`
+**Action**: `capture`  
+**Parameters**: `target="all_monitors"`, `includeCursor=true`  
+**Save As**: `step-1-before.png`  
+**Save Metadata**: `step-1-before-meta.json`
+
+**Verify**: Parse `compositeMetadata.monitors` to identify target monitor region.
 
 ### Step 3: Execute Action
 {The main action being tested}
@@ -77,11 +81,13 @@
 {Capture final state}
 
 **MCP Tool**: `screenshot_control`  
-**Parameters**: `target="monitor"`, `monitorIndex={secondary}`, `includeCursor=true`  
-**Save As**: `after.png`
+**Action**: `capture`  
+**Parameters**: `target="all_monitors"`, `includeCursor=true`  
+**Save As**: `step-1-after.png`  
+**Save Metadata**: `step-1-after-meta.json`
 
 ### Step 5: Verification
-{Describe what to look for in the screenshots}
+{Compare composite screenshots using monitor region metadata}
 
 ## Expected Result *
 

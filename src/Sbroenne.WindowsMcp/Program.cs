@@ -44,6 +44,7 @@ builder.Services.AddSingleton<IWindowService, WindowService>();
 // Register screenshot capture services
 builder.Services.AddSingleton<IMonitorService, MonitorService>();
 builder.Services.AddSingleton<IScreenshotService, ScreenshotService>();
+builder.Services.AddSingleton<IVisualDiffService, VisualDiffService>();
 
 // Configure MCP server with stdio transport
 builder.Services

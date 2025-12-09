@@ -83,18 +83,24 @@ Ordered list of actions with MCP tool details:
 ```markdown
 ## Steps
 
-### Step 1: Detect Secondary Monitor
+### Step 1: Detect Monitors
 
 **MCP Tool**: `screenshot_control`  
 **Action**: `list_monitors`  
-**Purpose**: Identify secondary monitor bounds
+**Purpose**: Identify monitor configuration and bounds
 
-### Step 2: Before Screenshot
+### Step 2: Before Screenshot (All Monitors)
 
 **MCP Tool**: `screenshot_control`  
-**Parameters**: `target="monitor"`, `monitorIndex={secondary}`, `includeCursor=true`  
-**Save As**: `before.png`
+**Action**: `capture`  
+**Parameters**: `target="all_monitors"`, `includeCursor=true`  
+**Save As**: `step-1-before.png`  
+**Save Metadata**: `step-1-before-meta.json` (contains monitor regions for verification)
 ```
+
+> **Note**: Use `target="all_monitors"` to capture a composite image of all connected monitors. 
+> The metadata JSON contains `MonitorRegions` with each monitor's bounds within the composite image,
+> enabling targeted visual verification on any specific monitor.
 
 ### 5. Expected Result
 
@@ -159,15 +165,18 @@ Close Calculator window to reset for next test.
 ### DO:
 - ✅ Include specific MCP tool names
 - ✅ List all relevant parameters
-- ✅ Specify screenshot save filenames
+- ✅ Use `target="all_monitors"` for composite screenshots
+- ✅ Save metadata JSON alongside screenshots for region mapping
+- ✅ Specify screenshot save filenames with step prefixes (e.g., `step-1-before.png`)
 - ✅ Include cursor in screenshots (`includeCursor=true`)
 - ✅ Describe verification criteria
 
 ### DON'T:
 - ❌ Leave placeholders unfilled
 - ❌ Omit before/after screenshots
+- ❌ Forget to save composite metadata for multi-monitor scenarios
 - ❌ Write vague verification steps
-- ❌ Forget to target secondary monitor
+- ❌ Use single-monitor capture when all-monitors is more appropriate
 
 ## Category Guidelines
 
@@ -188,11 +197,15 @@ Close Calculator window to reset for next test.
 
 ### SCREENSHOT
 - Test screen capture capabilities
+- **Use `target="all_monitors"` for composite capture** of all connected displays
+- Save metadata JSON for composite screenshots to enable region identification
 - Verify returned base64 data or file creation
-- Test monitor targeting and region capture
+- Test monitor targeting and region capture using metadata regions
 
 ### WORKFLOW
 - Chain multiple tools together
+- **Take all-monitors screenshots at key workflow steps**
+- Save metadata JSON for visual diff analysis across monitors
 - Take intermediate screenshots at key points
 - Document the complete flow with dependencies
 
@@ -203,8 +216,10 @@ Close Calculator window to reset for next test.
 
 ### VISUAL
 - Test visual verification patterns
-- Focus on before/after comparison
-- Document what visual changes to look for
+- **Use all-monitors composite screenshots for before/after comparison**
+- Use metadata regions to focus on specific monitor areas
+- Focus on before/after comparison with visual diff
+- Document what visual changes to look for and expected change percentage
 
 ## Validation Checklist
 
@@ -215,8 +230,10 @@ Before submitting, verify:
 - [ ] Metadata table complete
 - [ ] At least one pass criterion
 - [ ] Steps include MCP tool details
-- [ ] Screenshots named consistently
-- [ ] Secondary monitor targeted (with fallback)
+- [ ] Screenshots use `target="all_monitors"` for composite capture
+- [ ] Metadata JSON saved alongside composite screenshots
+- [ ] Screenshots named with step prefixes (e.g., `step-1-before.png`)
+- [ ] Before/after screenshots for visual verification steps
 
 ## Example Scenarios
 

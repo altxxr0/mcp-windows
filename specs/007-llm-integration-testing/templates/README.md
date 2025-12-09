@@ -101,6 +101,38 @@ monitor-1.png  # Secondary monitor
 monitor-all.png # All monitors combined
 ```
 
+### All-Monitors Composite Captures (v1.1+)
+
+For multi-monitor testing using `target="all_monitors"`:
+
+```
+step-N-before.png           # Composite screenshot before action
+step-N-before-meta.json     # Composite metadata (monitor regions)
+step-N-after.png            # Composite screenshot after action
+step-N-after-meta.json      # Composite metadata after action
+step-N-diff.json            # Visual diff result (optional)
+step-N-diff.png             # Diff image highlighting changes (optional)
+```
+
+#### Metadata File Contents
+
+The `*-meta.json` files contain monitor region information:
+
+```json
+{
+  "capture_time": "2025-01-15T10:30:00Z",
+  "virtual_screen": { "x": 0, "y": 0, "width": 3840, "height": 1080 },
+  "monitors": [
+    { "index": 0, "x": 0, "y": 0, "width": 1920, "height": 1080, "is_primary": true },
+    { "index": 1, "x": 1920, "y": 0, "width": 1920, "height": 1080, "is_primary": false }
+  ],
+  "image_width": 3840,
+  "image_height": 1080
+}
+```
+
+This metadata enables the LLM to identify specific monitor regions within the composite image.
+
 ### Visual Verification Screenshots
 
 For visual comparison tests (TC-VISUAL-*):

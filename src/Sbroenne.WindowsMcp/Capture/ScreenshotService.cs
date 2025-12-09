@@ -72,6 +72,7 @@ public sealed class ScreenshotService : IScreenshotService
                 CaptureTarget.Monitor => await CaptureMonitorAsync(request, cancellationToken),
                 CaptureTarget.Window => await CaptureWindowAsync(request, cancellationToken),
                 CaptureTarget.Region => await CaptureRegionAsync(request, cancellationToken),
+                CaptureTarget.AllMonitors => await CaptureAllMonitorsAsync(request, cancellationToken),
                 _ => ScreenshotControlResult.Error(
                     ScreenshotErrorCode.InvalidRequest,
                     $"Unsupported capture target: {request.Target}")
@@ -312,6 +313,123 @@ public sealed class ScreenshotService : IScreenshotService
         }
 
         return CaptureRegionInternalAsync(request.Region, request.IncludeCursor, cancellationToken);
+    }
+
+    /// <summary>
+    /// Captures all connected monitors as a single composite image.
+    /// Uses SystemInformation.VirtualScreen to get the bounding rectangle of all monitors.
+    /// </summary>
+    private Task<ScreenshotControlResult> CaptureAllMonitorsAsync(
+        ScreenshotControlRequest request,
+        CancellationToken cancellationToken)
+    {
+        // Get virtual screen bounds (encompasses all monitors)
+        var virtualScreen = SystemInformation.VirtualScreen;
+        var width = virtualScreen.Width;
+        var height = virtualScreen.Height;
+
+        // Check size limit
+        long totalPixels = (long)width * height;
+        if (totalPixels > _configuration.MaxPixels)
+        {
+            _logger.LogImageTooLarge(width, height, totalPixels, _configuration.MaxPixels);
+            return Task.FromResult(ScreenshotControlResult.Error(
+                ScreenshotErrorCode.ImageTooLarge,
+                $"All-monitors capture ({width}x{height} = {totalPixels:N0} pixels) exceeds maximum allowed ({_configuration.MaxPixels:N0} pixels)"));
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Create bitmap and capture the entire virtual screen
+        using var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+        using var graphics = Graphics.FromImage(bitmap);
+
+        // CopyFromScreen handles negative coordinates correctly for multi-monitor setups
+        graphics.CopyFromScreen(
+            virtualScreen.X,
+            virtualScreen.Y,
+            0,
+            0,
+            new Size(width, height),
+            CopyPixelOperation.SourceCopy);
+
+        // Optionally include cursor
+        Point? cursorPosition = null;
+        if (request.IncludeCursor)
+        {
+            cursorPosition = DrawCursorAndGetPosition(graphics, virtualScreen.X, virtualScreen.Y);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Build composite metadata with monitor regions
+        var monitors = _monitorService.GetMonitors();
+        var monitorRegions = monitors
+            .Select(m => MonitorRegion.FromMonitorInfo(m, virtualScreen.X, virtualScreen.Y))
+            .ToList();
+
+        var metadata = new CompositeScreenshotMetadata
+        {
+            CaptureTime = DateTimeOffset.UtcNow,
+            VirtualScreen = new VirtualScreenBounds
+            {
+                X = virtualScreen.X,
+                Y = virtualScreen.Y,
+                Width = width,
+                Height = height
+            },
+            Monitors = monitorRegions,
+            ImageWidth = width,
+            ImageHeight = height,
+            IncludedCursor = request.IncludeCursor,
+            CursorPosition = cursorPosition
+        };
+
+        // Encode to PNG and convert to base64
+        using var memoryStream = new MemoryStream();
+        bitmap.Save(memoryStream, ImageFormat.Png);
+        var base64 = Convert.ToBase64String(memoryStream.ToArray());
+
+        _logger.LogCaptureSuccess(width, height);
+
+        return Task.FromResult(ScreenshotControlResult.CompositeSuccess(
+            base64,
+            metadata,
+            $"Captured all {monitors.Count} monitor(s): {width}x{height} pixels"));
+    }
+
+    /// <summary>
+    /// Draws the cursor onto the captured image and returns its position relative to the region.
+    /// </summary>
+    private static Point? DrawCursorAndGetPosition(Graphics graphics, int regionX, int regionY)
+    {
+        try
+        {
+            var cursorInfo = CURSORINFO.Create();
+
+            if (NativeMethods.GetCursorInfo(ref cursorInfo) &&
+                (cursorInfo.Flags & CURSORINFO.CURSOR_SHOWING) != 0)
+            {
+                var cursorX = cursorInfo.PtScreenPos.X - regionX;
+                var cursorY = cursorInfo.PtScreenPos.Y - regionY;
+
+                NativeMethods.DrawIcon(
+                    graphics.GetHdc(),
+                    cursorX,
+                    cursorY,
+                    cursorInfo.HCursor);
+
+                graphics.ReleaseHdc();
+
+                return new Point { X = cursorX, Y = cursorY };
+            }
+        }
+        catch
+        {
+            // Cursor capture is optional; ignore failures
+        }
+
+        return null;
     }
 
     /// <summary>

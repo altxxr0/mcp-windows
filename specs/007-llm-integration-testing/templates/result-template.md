@@ -53,40 +53,129 @@
   Screenshots match Screenshot entity from data-model.md:
   - filename: File name in this directory
   - captureTime: When captured
-  - monitorIndex: Which monitor
+  - monitorIndex: Which monitor (or all for composite)
   - stepNumber: Which step (optional)
   - description: LLM description
   
   At least 1 screenshot is REQUIRED per data-model.md
+  
+  COMPOSITE SCREENSHOTS: Use target="all_monitors" to capture all connected displays
+  in a single composite image. Save the metadata JSON alongside the screenshot for
+  region mapping and visual diff analysis.
 -->
 
-### Before
-**Filename**: `before.png`  
+### Before (All Monitors Composite)
+
+**Filename**: `step-1-before.png`  
+**Metadata**: `step-1-before-meta.json`  
 **Capture Time**: {HH:MM:SS}  
-**Monitor Index**: {N}  
+**Target**: All Monitors (Composite)  
 **Step Number**: 2
 
-![Before](before.png)
+![Before](step-1-before.png)
 
-**LLM Observation**: {Description of what the LLM sees in this screenshot}
+<details>
+<summary>Composite Metadata</summary>
 
-### After
-**Filename**: `after.png`  
+```json
+{
+  "VirtualScreenBounds": {
+    "X": {left}, "Y": {top}, "Width": {width}, "Height": {height}
+  },
+  "MonitorRegions": [
+    {
+      "Index": 0,
+      "IsPrimary": true,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "Bounds": { "X": {X}, "Y": {Y}, "Width": {W}, "Height": {H} },
+      "ImageX": {offsetX},
+      "ImageY": {offsetY}
+    },
+    {
+      "Index": 1,
+      "IsPrimary": false,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "Bounds": { "X": {X}, "Y": {Y}, "Width": {W}, "Height": {H} },
+      "ImageX": {offsetX},
+      "ImageY": {offsetY}
+    }
+  ]
+}
+```
+</details>
+
+**LLM Observation**: {Description of what the LLM sees in this screenshot across all monitors}
+
+### After (All Monitors Composite)
+
+**Filename**: `step-1-after.png`  
+**Metadata**: `step-1-after-meta.json`  
 **Capture Time**: {HH:MM:SS}  
-**Monitor Index**: {N}  
+**Target**: All Monitors (Composite)  
 **Step Number**: 4
 
-![After](after.png)
+![After](step-1-after.png)
 
 **LLM Observation**: {Description of what the LLM sees in this screenshot}
 
 ### Intermediate Screenshots (if applicable)
 
-{Add any step-NN.png screenshots captured during the test}
+<!--
+  For multi-step tests, capture at key workflow steps:
+  - step-2-before.png / step-2-before-meta.json
+  - step-2-after.png / step-2-after-meta.json
+  - etc.
+-->
 
-### Visual Changes Detected
+{Add any step-N-*.png screenshots captured during the test}
 
-{LLM description of differences between before and after screenshots}
+## Visual Diff Analysis
+
+<!--
+  Visual diff is computed between before and after composite screenshots.
+  Uses pixel-by-pixel comparison with configurable threshold.
+  Diff results help identify what changed and where.
+-->
+
+### Diff Summary
+
+| Metric | Value |
+|--------|-------|
+| **Before Image** | step-1-before.png |
+| **After Image** | step-1-after.png |
+| **Total Pixels** | {N} |
+| **Changed Pixels** | {N} |
+| **Change Percentage** | {X.XX%} |
+| **Threshold** | {1.00%} |
+| **Is Significant** | ✅ Yes / ❌ No |
+| **Dimensions Match** | ✅ Yes / ❌ No |
+
+### Diff Image
+
+**Filename**: `step-1-diff.png`  
+
+![Diff](step-1-diff.png)
+
+**Changed Regions**: {Description of highlighted areas in diff image - red overlay indicates changed pixels}
+
+### Monitor-Specific Changes
+
+<!--
+  Use metadata region bounds to identify which monitors had changes
+-->
+
+| Monitor | Index | Change Detected | Description |
+|---------|-------|-----------------|-------------|
+| Primary | 0 | ✅ Yes / ❌ No | {Description of changes on primary monitor} |
+| Secondary | 1 | ✅ Yes / ❌ No | {Description of changes on secondary monitor} |
+
+### Visual Changes Summary
+
+{LLM description of differences between before and after screenshots, focusing on:
+- Window position/size changes
+- Content changes (text, images, controls)
+- Cursor position changes
+- Cross-monitor movements}
 
 ## Tool Invocations
 

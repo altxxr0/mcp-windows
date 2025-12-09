@@ -180,3 +180,94 @@ window2: x = monitor_x + 100, y = monitor_y + 100
 | TC-WORKFLOW-008 | Multi-window cascade | High | window, screenshot |
 | TC-WORKFLOW-009 | Drag and drop | High | mouse, keyboard, window, screenshot |
 | TC-WORKFLOW-010 | Full calculation sequence | High | keyboard, window, screenshot |
+
+---
+
+## All-Monitors Capture in Workflows (v1.1+)
+
+For comprehensive multi-monitor testing, use `target="all_monitors"` to capture all connected monitors as a single composite image at each workflow step.
+
+### Why Use All-Monitors Capture in Workflows
+
+1. **Track window movement across monitors**: Windows may move between monitors during operations
+2. **Capture complete desktop state**: See the full context including all visible windows
+3. **Validate no unexpected changes**: Verify other monitors remain unchanged during operations
+4. **Support cross-monitor workflows**: Drag-drop or move operations between monitors
+
+### All-Monitors Workflow Pattern
+
+```
+1. screenshot_control (list_monitors) → Identify all monitors
+2. screenshot_control (capture, target="all_monitors") → Before state of all monitors
+   → Save: step-N-before.png + step-N-before-meta.json
+3. [Perform operation]
+4. screenshot_control (capture, target="all_monitors") → After state of all monitors
+   → Save: step-N-after.png + step-N-after-meta.json
+5. Compare specific monitor regions using metadata
+```
+
+### Using Composite Metadata for Verification
+
+The `compositeMetadata` in the response enables targeted analysis:
+
+```json
+{
+  "virtual_screen": { "x": -1920, "y": 0, "width": 3840, "height": 1080 },
+  "monitors": [
+    { "index": 0, "x": 0, "y": 0, "width": 1920, "height": 1080, "is_primary": true },
+    { "index": 1, "x": 1920, "y": 0, "width": 1920, "height": 1080, "is_primary": false }
+  ]
+}
+```
+
+Using this metadata, the LLM can:
+- Identify which monitor contains a target window
+- Focus analysis on specific monitor regions
+- Detect cross-monitor window movement
+- Verify isolation (no changes on other monitors)
+
+### Workflow Verification Prompts with All-Monitors
+
+**After Window Move**:
+```
+Compare the before and after composite screenshots.
+Using compositeMetadata.monitors:
+1. Which monitor region contained the target window in the "before" image?
+2. Which monitor region contains the window in the "after" image?
+3. Did the window move within a monitor or between monitors?
+4. Are there any unexpected changes on other monitors?
+```
+
+**After Keyboard/Mouse Action**:
+```
+Compare the composite screenshots, focusing on the monitor where the target app is located.
+Using compositeMetadata to identify the correct region:
+1. What changed in the target application?
+2. Did the change match the expected result?
+3. Is the rest of the desktop unchanged?
+```
+
+### File Naming for All-Monitors Workflows
+
+```
+results/{YYYY-MM-DD}/TC-WORKFLOW-XXX/
+├── step-1-before.png           # Composite before step 1
+├── step-1-before-meta.json     # Metadata for step 1 before
+├── step-1-after.png            # Composite after step 1
+├── step-1-after-meta.json      # Metadata for step 1 after
+├── step-2-before.png           # Composite before step 2
+├── step-2-before-meta.json
+├── step-2-after.png
+├── step-2-after-meta.json
+├── ...
+└── result.md
+```
+
+### Best Practices for All-Monitors Workflows
+
+1. **Save metadata alongside screenshots**: Always save the `compositeMetadata` JSON for later analysis
+2. **Use consistent capture settings**: Same `includeCursor` value throughout the workflow
+3. **Reference monitor indices**: Use `compositeMetadata.monitors[N]` to identify specific regions
+4. **Handle negative virtual screen coordinates**: Virtual screen origin may be negative if monitors extend left/above primary
+5. **Compare equivalent regions**: When comparing before/after, focus on the same monitor region using metadata
+

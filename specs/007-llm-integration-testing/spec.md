@@ -20,10 +20,11 @@ Current testing gaps:
 ### Solution Approach
 
 Create a testing framework where:
-1. **Test scenarios are defined as natural language prompts** that GitHub Copilot executes
-2. **The LLM invokes MCP tools** to perform actions (mouse, keyboard, window, screenshot)
-3. **Screenshots are captured before and after** each action for visual diff verification
-4. **Results are validated** by comparing actual outcomes against expected states
+1. **Test scenarios are defined as natural language prompts** in structured files that describe what to test
+2. **GitHub Copilot directly executes tests** by reading scenario files and invoking MCP tools (mouse, keyboard, window, screenshot)
+3. **Screenshots of all monitors are captured before and after** each MCP tool invocation for visual diff verification
+4. **Copilot validates results** by comparing actual outcomes (screenshots, tool responses) against expected states defined in the scenario
+5. **No programmatic test runner needed** - the developer provides scenarios to Copilot Chat, and Copilot orchestrates the entire test execution
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -45,17 +46,19 @@ As a developer, I want to run a test that verifies a single MCP tool works corre
 
 ### User Story 2 - Visual Comparison and Diff Analysis (Priority: P1)
 
-As a developer, I want screenshots taken before and after each action so I can visually verify that the action had the expected effect.
+As a developer, I want screenshots of **all monitors** taken before and after each action so I can visually verify that the action had the expected effect regardless of which display it occurred on.
 
-**Why this priority**: Visual verification is the core differentiator from traditional testing - without it, we're just running integration tests.
+**Why this priority**: Visual verification is the core differentiator from traditional testing - without it, we're just running integration tests. Capturing all monitors ensures no visual changes are missed when actions affect multiple displays or when the target application is on a secondary monitor.
 
-**Independent Test**: Execute any MCP action, capture before/after screenshots, and produce a visual diff highlighting changes.
+**Independent Test**: Execute any MCP action, capture before/after screenshots of all monitors, and produce a visual diff highlighting changes.
 
 **Acceptance Scenarios**:
 
-1. **Given** a window move action, **When** before/after screenshots are taken, **Then** the visual diff shows the window in its new position
-2. **Given** a mouse click action on a button, **When** before/after screenshots are compared, **Then** the diff highlights the button state change (hover/pressed/clicked)
+1. **Given** a window move action, **When** before/after screenshots of all monitors are taken, **Then** the visual diff shows the window in its new position
+2. **Given** a mouse click action on a button, **When** before/after screenshots of all monitors are compared, **Then** the diff highlights the button state change (hover/pressed/clicked)
 3. **Given** no visible change occurred, **When** the diff is analyzed, **Then** the test can detect that expected changes did not happen
+4. **Given** a multi-monitor setup, **When** an action affects the secondary monitor, **Then** the before/after screenshots capture that monitor and the diff highlights the change
+5. **Given** an action that moves content between monitors, **When** before/after screenshots are compared, **Then** the visual diff shows the change on both source and destination monitors
 
 ---
 
@@ -127,6 +130,8 @@ As a developer, I want to trigger tests directly from VS Code using chat command
 
 - What happens when the MCP server is not running? → Test framework detects connection failure and reports clearly
 - What happens when a screenshot cannot be captured (e.g., secure desktop)? → Test logs the limitation and continues if possible, or fails gracefully
+- What happens when monitors have different resolutions or DPI settings? → All-monitor capture respects each monitor's native resolution and arranges them according to virtual desktop coordinates
+- What happens when monitors have gaps or overlaps in virtual desktop arrangement? → Composite image reflects actual virtual desktop layout including gaps; overlapping regions show content from the topmost monitor in Z-order
 - What happens when the LLM interprets a scenario incorrectly? → Scenario format should be unambiguous; framework should detect unexpected tool calls
 - What happens when visual diff detects no change but action claims success? → This is flagged as a potential false positive for human review
 - What happens during concurrent test execution? → Tests should run sequentially to avoid mouse/keyboard conflicts
@@ -135,10 +140,13 @@ As a developer, I want to trigger tests directly from VS Code using chat command
 
 ### Functional Requirements
 
-- **FR-001**: System MUST allow defining test scenarios in a structured file format (YAML or JSON)
-- **FR-002**: System MUST execute scenarios by passing prompts to GitHub Copilot for LLM processing
-- **FR-003**: System MUST capture screenshots before and after each MCP tool invocation
-- **FR-004**: System MUST compute visual differences between before/after screenshots
+- **FR-001**: System MUST allow defining test scenarios in Markdown files with structured headings (optimized for LLM readability)
+- **FR-002**: Scenarios MUST be executable by GitHub Copilot directly reading the scenario file and invoking MCP tools without requiring a separate test runner
+- **FR-003**: System MUST capture screenshots of **all connected monitors** before and after each MCP tool invocation
+- **FR-003a**: System MUST support a capture mode that combines all monitors into a single composite image representing the entire virtual desktop
+- **FR-003b**: System MUST label or identify each monitor's region within the composite screenshot for debugging purposes
+- **FR-004**: System MUST compute visual differences between before/after screenshots across all captured monitors
+- **FR-004a**: Visual diff MUST use a configurable pixel-change threshold (default 1%) to determine if images are meaningfully different
 - **FR-005**: System MUST generate structured test results with pass/fail status
 - **FR-006**: System MUST support single-action and multi-step workflow scenarios
 - **FR-007**: System MUST validate scenario files before execution and report errors
@@ -150,10 +158,11 @@ As a developer, I want to trigger tests directly from VS Code using chat command
 
 ### Key Entities
 
-- **Test Scenario**: Definition of what to test - includes description, actions, expected outcomes
+- **Test Scenario**: Definition of what to test in Markdown format - includes description, actions, expected outcomes, structured with headings for LLM parsing
 - **Test Step**: A single action within a scenario - MCP tool invocation with parameters
-- **Screenshot Pair**: Before/after images captured around an action
-- **Visual Diff**: Computed difference between two screenshots highlighting changes
+- **Screenshot Pair**: Before/after images of all monitors captured around an action; stored as composite PNG files
+- **Composite Screenshot**: A single PNG image combining all connected monitors, arranged according to their virtual desktop positions; accompanied by a JSON metadata file describing each monitor's region (index, x, y, width, height) within the composite
+- **Visual Diff**: Computed difference between two composite screenshots highlighting changes across all monitors; uses pixel-based comparison with configurable threshold (default: 1% of pixels changed to flag as different)
 - **Test Result**: Outcome of a scenario execution - pass/fail, duration, artifacts
 - **Test Report**: Aggregated results from one or more scenario executions
 
@@ -162,7 +171,8 @@ As a developer, I want to trigger tests directly from VS Code using chat command
 ### Measurable Outcomes
 
 - **SC-001**: Developers can execute a single-action test scenario and receive pass/fail results within 30 seconds
-- **SC-002**: Visual diffs correctly identify changed regions with 95% accuracy (measured against known test cases)
+- **SC-002**: Visual diffs correctly identify changed regions across all monitors with 95% accuracy (measured against known test cases)
+- **SC-002a**: All-monitor capture completes within 2 seconds regardless of the number of connected monitors (up to 4 monitors)
 - **SC-003**: Multi-step workflows with up to 10 actions complete successfully without manual intervention
 - **SC-004**: Test results include all required artifacts (screenshots, diffs, logs) in 100% of executions
 - **SC-005**: Failed tests provide sufficient diagnostic information for a developer to identify the issue without re-running
@@ -177,6 +187,7 @@ As a developer, I want to trigger tests directly from VS Code using chat command
 - Screenshots can be captured of the active desktop
 - Test scenarios target the current Windows session (no remote desktop scenarios)
 - Tests run sequentially to avoid input conflicts (mouse/keyboard contention)
+- **Inter-action delay**: A configurable delay (default 500ms) is applied between MCP actions to allow Windows UI to stabilize (animations, focus transitions, rendering)
 - **Tests MUST target the secondary monitor when available** to avoid interference with the developer's VS Code session on the primary monitor; tests detect available monitors at startup and select the secondary monitor if present, falling back to primary only when no secondary exists (per Constitution v2.3.0, Principle XIV)
 
 ## Clarifications
@@ -184,6 +195,11 @@ As a developer, I want to trigger tests directly from VS Code using chat command
 ### Session 2025-12-08
 - Q: How should tests handle multi-monitor setups? → A: Tests explicitly target secondary monitor when available; fallback to primary if no secondary exists
 - Q: What target application(s) should tests use? → A: **Notepad + Calculator** - Notepad for keyboard/text input tests (always available, simple text editing); Calculator for button click and UI interaction tests (visual feedback, predictable layout). Both are Windows 11 built-in apps requiring no installation.
+- Q: How should composite screenshot data be stored in test results? → A: Single composite PNG + separate JSON metadata file with monitor regions
+- Q: How should the test framework invoke GitHub Copilot to execute scenarios? → A: **Direct LLM execution** - The developer provides the scenario file/prompt to Copilot Chat, and Copilot reads it and directly invokes MCP tools to execute the test steps. No programmatic API needed; Copilot IS the test executor.
+- Q: What visual diff sensitivity threshold should be used? → A: Configurable threshold, default 1% of pixels changed to flag as different (balances detecting real changes while ignoring minor rendering variations like anti-aliasing, clock updates, cursor blink)
+- Q: What delay should be used between MCP actions to allow UI stabilization? → A: Configurable delay, default 500ms between actions (allows Windows UI time to render changes like window animations and focus transitions)
+- Q: What should be the canonical scenario file format? → A: **Markdown with structured headings** - matches existing scenarios, optimized for LLM readability since Copilot directly reads and executes them
 
 ---
 
@@ -463,6 +479,18 @@ This section defines all test cases organized by MCP tool. Each test case includ
 - **Prompt**: "Take a screenshot of the primary screen"
 - **Verification**: Image returned with correct dimensions
 - **Expected Outcome**: Valid PNG image matching primary monitor resolution
+
+#### TC-SCREENSHOT-001a: Capture all monitors
+- **Description**: Verify capture of all connected monitors as a composite image
+- **Prompt**: "Take a screenshot of all monitors"
+- **Verification**: Image returned contains all monitors arranged according to virtual desktop layout
+- **Expected Outcome**: Valid PNG image with combined dimensions of all monitors; each monitor's content is visible
+
+#### TC-SCREENSHOT-001b: Capture all monitors with identification
+- **Description**: Verify each monitor region is identifiable in composite
+- **Prompt**: "Take a screenshot of all monitors and identify each monitor's region"
+- **Verification**: Response includes monitor boundaries within the composite image
+- **Expected Outcome**: Composite image plus metadata describing each monitor's position and dimensions within the image
 
 #### TC-SCREENSHOT-002: List available monitors
 - **Description**: Verify monitor enumeration

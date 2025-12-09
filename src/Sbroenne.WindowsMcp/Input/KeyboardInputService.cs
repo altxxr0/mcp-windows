@@ -142,9 +142,10 @@ public sealed class KeyboardInputService : IKeyboardInputService, IDisposable
         if (result != inputArray.Length)
         {
             var error = Marshal.GetLastWin32Error();
+            var (errorCode, errorMessage) = MapSendInputError(error);
             return KeyboardControlResult.CreateFailure(
-                KeyboardControlErrorCode.SendInputFailed,
-                $"SendInput failed with error code {error}. Expected {inputArray.Length} events, sent {result}.");
+                errorCode,
+                $"{errorMessage}. Expected {inputArray.Length} events, sent {result}.");
         }
 
         // Count actual characters typed (excluding control characters converted to keys)
@@ -175,6 +176,23 @@ public sealed class KeyboardInputService : IKeyboardInputService, IDisposable
                     DwExtraInfo = 0
                 }
             }
+        };
+    }
+
+    /// <summary>
+    /// Maps Win32 error codes from SendInput to appropriate keyboard error codes and messages.
+    /// </summary>
+    /// <param name="win32ErrorCode">The Win32 error code from Marshal.GetLastWin32Error().</param>
+    /// <returns>A tuple containing the mapped error code and a descriptive message.</returns>
+    private static (KeyboardControlErrorCode ErrorCode, string Message) MapSendInputError(int win32ErrorCode)
+    {
+        return win32ErrorCode switch
+        {
+            NativeConstants.ERROR_ACCESS_DENIED => (
+                KeyboardControlErrorCode.ElevatedProcessTarget,
+                "SendInput was blocked. The target window may belong to an elevated (admin) process. " +
+                "Run the MCP server as administrator, or focus a non-elevated application."),
+            _ => (KeyboardControlErrorCode.SendInputFailed, $"SendInput failed with error code {win32ErrorCode}")
         };
     }
 
@@ -227,9 +245,10 @@ public sealed class KeyboardInputService : IKeyboardInputService, IDisposable
                 if (result != 2)
                 {
                     var error = Marshal.GetLastWin32Error();
+                    var (errorCode, errorMessage) = MapSendInputError(error);
                     return Task.FromResult(KeyboardControlResult.CreateFailure(
-                        KeyboardControlErrorCode.SendInputFailed,
-                        $"SendInput failed with error code {error}."));
+                        errorCode,
+                        errorMessage));
                 }
             }
 
@@ -285,9 +304,10 @@ public sealed class KeyboardInputService : IKeyboardInputService, IDisposable
         if (result != 1)
         {
             var error = Marshal.GetLastWin32Error();
+            var (errorCode, errorMessage) = MapSendInputError(error);
             return Task.FromResult(KeyboardControlResult.CreateFailure(
-                KeyboardControlErrorCode.SendInputFailed,
-                $"SendInput failed with error code {error}."));
+                errorCode,
+                errorMessage));
         }
 
         // Track the held key
@@ -334,9 +354,10 @@ public sealed class KeyboardInputService : IKeyboardInputService, IDisposable
         if (result != 1)
         {
             var error = Marshal.GetLastWin32Error();
+            var (errorCode, errorMessage) = MapSendInputError(error);
             return Task.FromResult(KeyboardControlResult.CreateFailure(
-                KeyboardControlErrorCode.SendInputFailed,
-                $"SendInput failed with error code {error}."));
+                errorCode,
+                errorMessage));
         }
 
         // Remove from held keys
@@ -375,9 +396,10 @@ public sealed class KeyboardInputService : IKeyboardInputService, IDisposable
         if (result != inputArray.Length)
         {
             var error = Marshal.GetLastWin32Error();
+            var (errorCode, errorMessage) = MapSendInputError(error);
             return Task.FromResult(KeyboardControlResult.CreateFailure(
-                KeyboardControlErrorCode.SendInputFailed,
-                $"SendInput failed with error code {error}. Expected {inputArray.Length} events, sent {result}."));
+                errorCode,
+                $"{errorMessage}. Expected {inputArray.Length} events, sent {result}."));
         }
 
         return Task.FromResult(KeyboardControlResult.CreateReleaseAllSuccess());

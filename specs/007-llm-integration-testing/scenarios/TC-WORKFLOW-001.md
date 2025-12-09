@@ -28,15 +28,20 @@ Verify the complete workflow of finding a window by title and activating it to t
 
 **MCP Tool**: `screenshot_control`  
 **Action**: `list_monitors`  
-**Purpose**: Identify secondary monitor bounds for targeting
+**Purpose**: Identify all monitors and their configuration
 
 ### Step 2: Before Screenshot (Initial State)
 
 **MCP Tool**: `screenshot_control`  
-**Parameters**: `target="monitor"`, `monitorIndex={secondary}`, `includeCursor=true`  
-**Save As**: `before.png`
+**Action**: `capture`  
+**Parameters**: `target="all_monitors"`, `includeCursor=true`  
+**Save As**: `step-1-before.png`  
+**Save Metadata**: `step-1-before-meta.json`
 
-**Verify**: Notepad is visible but NOT in the foreground (another window is active).
+**Verify**: 
+- Parse `compositeMetadata.monitors` to identify all monitor regions
+- Locate Notepad window within a monitor region
+- Note: Notepad is visible but NOT in the foreground (another window is active)
 
 ### Step 3: Find Window by Title
 
@@ -46,15 +51,17 @@ Verify the complete workflow of finding a window by title and activating it to t
 - `title`: `"Notepad"`
 - `regex`: `true`
 
-**Record**: Store the returned handle for use in Step 4.
+**Record**: Store the returned handle for use in Step 5.
 
 ### Step 4: Intermediate Screenshot (After Find)
 
 **MCP Tool**: `screenshot_control`  
-**Parameters**: `target="monitor"`, `monitorIndex={secondary}`, `includeCursor=true`  
-**Save As**: `step-03-after-find.png`
+**Action**: `capture`  
+**Parameters**: `target="all_monitors"`, `includeCursor=true`  
+**Save As**: `step-2-after-find.png`  
+**Save Metadata**: `step-2-after-find-meta.json`
 
-**Verify**: State should be unchanged (find doesn't affect window).
+**Verify**: State should be unchanged across all monitors (find doesn't affect window).
 
 ### Step 5: Activate Window by Handle
 
@@ -66,15 +73,22 @@ Verify the complete workflow of finding a window by title and activating it to t
 ### Step 6: After Screenshot (Final State)
 
 **MCP Tool**: `screenshot_control`  
-**Parameters**: `target="monitor"`, `monitorIndex={secondary}`, `includeCursor=true`  
-**Save As**: `after.png`
+**Action**: `capture`  
+**Parameters**: `target="all_monitors"`, `includeCursor=true`  
+**Save As**: `step-3-after.png`  
+**Save Metadata**: `step-3-after-meta.json`
 
 ### Step 7: Visual Verification
 
-Compare screenshots:
-- "before.png": Notepad visible but in background
-- "step-03-after-find.png": Same as before (no change)
-- "after.png": Notepad now in foreground with active title bar
+Compare all-monitors composite screenshots:
+- "step-1-before.png": Notepad visible but in background (identify which monitor region)
+- "step-2-after-find.png": Same as before across all monitors (no change)
+- "step-3-after.png": Notepad now in foreground with active title bar
+
+Using the metadata, verify:
+- Notepad remains on the same monitor throughout the workflow
+- No unexpected changes on other monitors
+- Title bar shows active/focused state in the final screenshot
 
 ## Expected Result
 

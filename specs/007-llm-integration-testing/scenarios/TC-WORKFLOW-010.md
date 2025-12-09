@@ -29,7 +29,7 @@ Verify a complete UI interaction sequence: perform a multi-step calculation in C
 
 **MCP Tool**: `screenshot_control`  
 **Action**: `list_monitors`  
-**Purpose**: Identify secondary monitor bounds for targeting
+**Purpose**: Identify all monitors and their configuration
 
 ### Step 2: Find and Activate Calculator
 
@@ -46,13 +46,17 @@ Verify a complete UI interaction sequence: perform a multi-step calculation in C
 **Parameters**:
 - `handle`: `"{calculator_handle}"`
 
-### Step 3: Before Screenshot (Clear State)
+### Step 3: Before Screenshot (Clear State - All Monitors)
 
 **MCP Tool**: `screenshot_control`  
-**Parameters**: `target="monitor"`, `monitorIndex={secondary}`, `includeCursor=true`  
-**Save As**: `before.png`
+**Action**: `capture`  
+**Parameters**: `target="all_monitors"`, `includeCursor=true`  
+**Save As**: `step-1-before.png`  
+**Save Metadata**: `step-1-before-meta.json`
 
-**Verify**: Display shows "0".
+**Verify**: 
+- Parse `compositeMetadata.monitors` to identify which monitor contains Calculator
+- Display shows "0"
 
 ### Step 4: Press "7" Using Keyboard
 
@@ -61,13 +65,15 @@ Verify a complete UI interaction sequence: perform a multi-step calculation in C
 **Parameters**:
 - `key`: `7`
 
-### Step 5: After "7" Screenshot
+### Step 5: After "7" Screenshot (All Monitors)
 
 **MCP Tool**: `screenshot_control`  
-**Parameters**: `target="monitor"`, `monitorIndex={secondary}`, `includeCursor=true`  
-**Save As**: `step-04-seven.png`
+**Action**: `capture`  
+**Parameters**: `target="all_monitors"`, `includeCursor=true`  
+**Save As**: `step-2-seven.png`  
+**Save Metadata**: `step-2-seven-meta.json`
 
-**Verify**: Display shows "7".
+**Verify**: Display shows "7" in the Calculator's monitor region.
 
 ### Step 6: Press "+" Using Keyboard
 
@@ -78,13 +84,15 @@ Verify a complete UI interaction sequence: perform a multi-step calculation in C
 
 (Note: May need to use `combo` with shift+= on some keyboards)
 
-### Step 7: After "+" Screenshot
+### Step 7: After "+" Screenshot (All Monitors)
 
 **MCP Tool**: `screenshot_control`  
-**Parameters**: `target="monitor"`, `monitorIndex={secondary}`, `includeCursor=true`  
-**Save As**: `step-06-plus.png`
+**Action**: `capture`  
+**Parameters**: `target="all_monitors"`, `includeCursor=true`  
+**Save As**: `step-3-plus.png`  
+**Save Metadata**: `step-3-plus-meta.json`
 
-**Verify**: Display still shows "7" (or shows operation indicator).
+**Verify**: Display still shows "7" (or shows operation indicator) in Calculator's monitor region.
 
 ### Step 8: Press "3" Using Keyboard
 
@@ -93,13 +101,15 @@ Verify a complete UI interaction sequence: perform a multi-step calculation in C
 **Parameters**:
 - `key`: `3`
 
-### Step 9: After "3" Screenshot
+### Step 9: After "3" Screenshot (All Monitors)
 
 **MCP Tool**: `screenshot_control`  
-**Parameters**: `target="monitor"`, `monitorIndex={secondary}`, `includeCursor=true`  
-**Save As**: `step-08-three.png`
+**Action**: `capture`  
+**Parameters**: `target="all_monitors"`, `includeCursor=true`  
+**Save As**: `step-4-three.png`  
+**Save Metadata**: `step-4-three-meta.json`
 
-**Verify**: Display shows "3".
+**Verify**: Display shows "3" in Calculator's monitor region.
 
 ### Step 10: Press "=" Using Keyboard
 
@@ -110,22 +120,29 @@ Verify a complete UI interaction sequence: perform a multi-step calculation in C
 
 (Note: Enter key triggers equals in Calculator)
 
-### Step 11: After Screenshot (Result)
+### Step 11: After Screenshot (Result - All Monitors)
 
 **MCP Tool**: `screenshot_control`  
-**Parameters**: `target="monitor"`, `monitorIndex={secondary}`, `includeCursor=true`  
-**Save As**: `after.png`
+**Action**: `capture`  
+**Parameters**: `target="all_monitors"`, `includeCursor=true`  
+**Save As**: `step-5-result.png`  
+**Save Metadata**: `step-5-result-meta.json`
 
-**Verify**: Display shows "10".
+**Verify**: Display shows "10" in Calculator's monitor region.
 
-### Step 12: Visual Verification
+### Step 12: Visual Verification with All-Monitors Composites
 
-Compare all screenshots:
-- "before.png": Display shows "0"
-- "step-04-seven.png": Display shows "7"
-- "step-06-plus.png": Shows operation in progress
-- "step-08-three.png": Display shows "3"
-- "after.png": Display shows "10" (7 + 3 = 10)
+Compare all composite screenshots, focusing on the Calculator's monitor region using `compositeMetadata`:
+- "step-1-before.png": Display shows "0"
+- "step-2-seven.png": Display shows "7"
+- "step-3-plus.png": Shows operation in progress
+- "step-4-three.png": Display shows "3"
+- "step-5-result.png": Display shows "10" (7 + 3 = 10)
+
+Verify:
+- Calculator remains on the same monitor throughout
+- Only the Calculator display changes; rest of desktop remains stable
+- No unexpected windows appear on any monitor
 
 ## Expected Result
 

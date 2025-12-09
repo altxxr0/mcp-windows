@@ -52,9 +52,10 @@ public sealed class MouseInputService : IMouseInputService
         if (result != 1)
         {
             var error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+            var (errorCode, errorMessage) = MapSendInputError(error);
             return Task.FromResult(MouseControlResult.CreateFailure(
-                MouseControlErrorCode.SendInputFailed,
-                $"SendInput failed with error code {error}",
+                errorCode,
+                errorMessage,
                 screenBounds));
         }
 
@@ -148,9 +149,10 @@ public sealed class MouseInputService : IMouseInputService
             if (result != 2)
             {
                 var error = Marshal.GetLastWin32Error();
+                var (errorCode, errorMessage) = MapSendInputError(error);
                 return Task.FromResult(MouseControlResult.CreateFailure(
-                    MouseControlErrorCode.SendInputFailed,
-                    $"SendInput failed with error code {error}",
+                    errorCode,
+                    errorMessage,
                     screenBounds));
             }
 
@@ -316,9 +318,10 @@ public sealed class MouseInputService : IMouseInputService
             if (result != 4)
             {
                 var error = Marshal.GetLastWin32Error();
+                var (errorCode, errorMessage) = MapSendInputError(error);
                 return Task.FromResult(MouseControlResult.CreateFailure(
-                    MouseControlErrorCode.SendInputFailed,
-                    $"SendInput failed with error code {error}",
+                    errorCode,
+                    errorMessage,
                     screenBounds));
             }
 
@@ -417,9 +420,10 @@ public sealed class MouseInputService : IMouseInputService
             if (result != 2)
             {
                 var error = Marshal.GetLastWin32Error();
+                var (errorCode, errorMessage) = MapSendInputError(error);
                 return Task.FromResult(MouseControlResult.CreateFailure(
-                    MouseControlErrorCode.SendInputFailed,
-                    $"SendInput failed with error code {error}",
+                    errorCode,
+                    errorMessage,
                     screenBounds));
             }
 
@@ -513,9 +517,10 @@ public sealed class MouseInputService : IMouseInputService
         if (result != 2)
         {
             var error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+            var (errorCode, errorMessage) = MapSendInputError(error);
             return Task.FromResult(MouseControlResult.CreateFailure(
-                MouseControlErrorCode.SendInputFailed,
-                $"SendInput failed with error code {error}",
+                errorCode,
+                errorMessage,
                 screenBounds));
         }
 
@@ -605,9 +610,10 @@ public sealed class MouseInputService : IMouseInputService
         if (buttonDownResult != 1)
         {
             var error = Marshal.GetLastWin32Error();
+            var (errorCode, errorMessage) = MapSendInputError(error);
             return Task.FromResult(MouseControlResult.CreateFailure(
-                MouseControlErrorCode.SendInputFailed,
-                $"SendInput failed for button down with error code {error}",
+                errorCode,
+                $"SendInput failed for button down: {errorMessage}",
                 screenBounds));
         }
 
@@ -753,9 +759,10 @@ public sealed class MouseInputService : IMouseInputService
         if (result != 1)
         {
             var error = Marshal.GetLastWin32Error();
+            var (errorCode, errorMessage) = MapSendInputError(error);
             return Task.FromResult(MouseControlResult.CreateFailure(
-                MouseControlErrorCode.SendInputFailed,
-                $"SendInput failed with error code {error}",
+                errorCode,
+                errorMessage,
                 screenBounds));
         }
 
@@ -764,5 +771,23 @@ public sealed class MouseInputService : IMouseInputService
         var finalPosition = new Coordinates(finalPos.X, finalPos.Y);
 
         return Task.FromResult(MouseControlResult.CreateSuccess(finalPosition, screenBounds, windowTitle));
+    }
+
+    /// <summary>
+    /// Maps a Win32 error code from SendInput to an appropriate MouseControlErrorCode.
+    /// </summary>
+    /// <param name="win32ErrorCode">The Win32 error code from GetLastError.</param>
+    /// <returns>A tuple of the appropriate error code and error message.</returns>
+    private static (MouseControlErrorCode ErrorCode, string Message) MapSendInputError(int win32ErrorCode)
+    {
+        return win32ErrorCode switch
+        {
+            NativeConstants.ERROR_ACCESS_DENIED => (
+                MouseControlErrorCode.ElevatedProcessTarget,
+                "SendInput was blocked. The target window may belong to an elevated (admin) process or input is blocked by system state."),
+            _ => (
+                MouseControlErrorCode.SendInputFailed,
+                $"SendInput failed with error code {win32ErrorCode}")
+        };
     }
 }

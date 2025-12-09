@@ -44,11 +44,11 @@ public sealed class ScreenshotControlTool
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>JSON result with base64-encoded PNG image data or monitor list.</returns>
     [McpServerTool(Name = "screenshot_control")]
-    [Description("Captures screenshots of screens, monitors, windows, or regions on Windows. Returns base64-encoded PNG image data. Use action 'list_monitors' to enumerate available monitors. Respects secure desktop (UAC/lock screen) restrictions.")]
+    [Description("Captures screenshots of screens, monitors, windows, or regions on Windows. Returns base64-encoded PNG image data. Use action 'list_monitors' to enumerate available monitors. Use target 'all_monitors' to capture all connected monitors as a single composite image. Respects secure desktop (UAC/lock screen) restrictions.")]
     public async Task<string> ExecuteAsync(
         [Description("The action to perform. Valid values: 'capture' (take screenshot), 'list_monitors' (enumerate displays). Default: 'capture'")]
         string? action = null,
-        [Description("Capture target. Valid values: 'primary_screen', 'monitor' (by index), 'window' (by handle), 'region' (by coordinates), 'all_monitors' (entire virtual screen). Default: 'primary_screen'")]
+        [Description("Capture target. Valid values: 'primary_screen', 'monitor' (by index), 'window' (by handle), 'region' (by coordinates), 'all_monitors' (composite of all displays). Default: 'primary_screen'")]
         string? target = null,
         [Description("Monitor index for 'monitor' target (0-based). Use 'list_monitors' to get available indices.")]
         int? monitorIndex = null,

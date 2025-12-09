@@ -1,146 +1,104 @@
-# Implementation Plan: LLM-Based Integration Testing Framework
+# Implementation Plan: [FEATURE]
 
-**Branch**: `007-llm-integration-testing` | **Date**: 2025-12-08 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `/specs/007-llm-integration-testing/spec.md`
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
 ## Summary
 
-Create an LLM-based integration testing framework where GitHub Copilot (the LLM) acts as the test executor, invoking MCP tools directly and using screenshots for visual verification. Unlike traditional test frameworks, this approach leverages existing MCP tools already available in Copilot's session—no external test runner code is required. The "framework" consists of:
-1. Test scenario definitions (markdown files with structured prompts)
-2. Results storage conventions (directories and naming)
-3. Execution guide for developers
-4. Optional: Convenience scripts for batch execution
+[Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
 
-**Language/Version**: N/A (Test scenarios are natural language prompts; no compiled code)
-**Primary Dependencies**: 
-- GitHub Copilot (already available in VS Code)
-- MCP tools: `mcp_windows_mcp_s_mouse_control`, `mcp_windows_mcp_s_keyboard_control`, `mcp_windows_mcp_s_window_management`, `mcp_windows_mcp_s_screenshot_control`
-**Storage**: Filesystem (screenshots saved as PNG, results as markdown)
-**Testing**: Self-referential (the framework IS the test execution mechanism)
-**Target Platform**: Windows 11 (same as MCP server)
-**Project Type**: Documentation + test scenarios (no source code)
-**Performance Goals**: Single-action tests complete within 30 seconds (SC-001)
-**Constraints**: Tests run sequentially; secondary monitor preferred (Constitution v2.3.0, Principle XIV)
-**Scale/Scope**: 74 test cases defined in spec.md
-**Target Applications**: Notepad (keyboard/text tests) + Calculator (button/click tests) - Windows 11 built-in apps
+<!--
+  ACTION REQUIRED: Replace the content in this section with the technical details
+  for the project. The structure here is presented in advisory capacity to guide
+  the iteration process.
+-->
+
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: [single/web/mobile - determines source structure]  
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| I. Test-First Development | ✅ PASS | This feature IS about testing |
-| VI. Augmentation, Not Duplication | ✅ PASS | LLM does the visual analysis—we just provide raw screenshots |
-| VII. Windows API Documentation-First | ✅ N/A | No new Windows APIs needed |
-| XIII. Modern .NET & C# Best Practices | ✅ N/A | No C# code in this feature |
-| XIV. xUnit Testing Best Practices | ✅ PASS | Secondary monitor requirement incorporated |
-| XXII. Open Source Dependencies | ✅ PASS | No external dependencies |
-
-**All gates pass.** No violations requiring justification.
+[Gates determined based on constitution file]
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/007-llm-integration-testing/
-├── plan.md              # This file
-├── spec.md              # Feature specification with 74 test cases
-├── research.md          # Phase 0 output (framework research summary)
-├── data-model.md        # Phase 1 output (test scenario format)
-├── quickstart.md        # Phase 1 output (execution guide)
-├── contracts/           # Phase 1 output (scenario schema)
-│   └── scenario-schema.json
-├── checklists/
-│   └── requirements.md  # Specification checklist
-├── scenarios/           # Test scenario files (Phase 3+)
-│   ├── TC-MOUSE-001.md
-│   ├── TC-KEYBOARD-001.md
-│   └── ...
-├── templates/           # Reusable templates
-│   ├── scenario-template.md
-│   ├── result-template.md
-│   └── report-template.md
-└── results/             # Test execution results (created at runtime)
-    └── [YYYY-MM-DD]/
-        ├── TC-MOUSE-001/
-        │   ├── before.png
-        │   ├── after.png
-        │   └── result.md
-        └── ...
+specs/[###-feature]/
+├── plan.md              # This file (/speckit.plan command output)
+├── research.md          # Phase 0 output (/speckit.plan command)
+├── data-model.md        # Phase 1 output (/speckit.plan command)
+├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── contracts/           # Phase 1 output (/speckit.plan command)
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
 ### Source Code (repository root)
+<!--
+  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
+  for this feature. Delete unused options and expand the chosen structure with
+  real paths (e.g., apps/admin, packages/something). The delivered plan must
+  not include Option labels.
+-->
 
 ```text
-# No source code changes required for this feature
-# The "framework" is:
-# 1. Test scenario markdown files (in specs/007-llm-integration-testing/)
-# 2. GitHub Copilot executing prompts
-# 3. MCP tools already implemented
+# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+src/
+├── models/
+├── services/
+├── cli/
+└── lib/
 
-# Optional convenience scripts (Phase 2, if desired):
-scripts/
-└── test-llm/
-    ├── run-test.ps1       # Helper to structure test execution
-    └── save-results.ps1   # Helper to organize screenshots
+tests/
+├── contract/
+├── integration/
+└── unit/
+
+# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+backend/
+├── src/
+│   ├── models/
+│   ├── services/
+│   └── api/
+└── tests/
+
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── services/
+└── tests/
+
+# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+api/
+└── [same as backend above]
+
+ios/ or android/
+└── [platform-specific structure: feature modules, UI flows, platform tests]
 ```
 
-**Structure Decision**: This feature is primarily documentation and test scenario definitions. No changes to the `src/` or `tests/` directories are required. The test execution happens through GitHub Copilot chat, which already has access to all MCP tools.
+**Structure Decision**: [Document the selected structure and reference the real
+directories captured above]
 
 ## Complexity Tracking
 
-> **No violations requiring justification.** This feature adds no production code complexity.
+> **Fill ONLY if Constitution Check has violations that must be justified**
 
----
-
-## Post-Design Constitution Check
-
-*Re-evaluation after Phase 1 design completion*
-
-| Principle | Status | Post-Design Notes |
-|-----------|--------|-------------------|
-| I. Test-First Development | ✅ PASS | Framework enables test-first for MCP tools |
-| VI. Augmentation, Not Duplication | ✅ PASS | LLM analyzes screenshots; server only captures |
-| VII. Windows API Documentation-First | ✅ N/A | No new Windows APIs introduced |
-| VIII. Security Best Practices | ✅ PASS | No code changes; test scenarios are inert |
-| XIV. xUnit Testing Best Practices | ✅ PASS | Secondary monitor requirement in all scenarios |
-| XXII. Open Source Dependencies | ✅ PASS | Zero new dependencies added |
-
-**All gates pass post-design. Proceed to Phase 2 (tasks.md).**
-
----
-
-## Artifacts Generated
-
-| Phase | Artifact | Path | Status |
-|-------|----------|------|--------|
-| 0 | Research | [research.md](research.md) | ✅ Complete |
-| 1 | Data Model | [data-model.md](data-model.md) | ✅ Complete |
-| 1 | Contract Schema | [contracts/scenario-schema.json](contracts/scenario-schema.json) | ✅ Complete |
-| 1 | Quickstart Guide | [quickstart.md](quickstart.md) | ✅ Complete |
-| 1 | Agent Context | `.github/agents/copilot-instructions.md` | ✅ Updated |
-| 2 | Tasks | [tasks.md](tasks.md) | ✅ Complete |
-| 3 | Mouse Scenarios | [scenarios/TC-MOUSE-*.md](scenarios/) | ✅ 12 scenarios |
-| 3 | Keyboard Scenarios | [scenarios/TC-KEYBOARD-*.md](scenarios/) | ✅ 15 scenarios |
-| 3 | Window Scenarios | [scenarios/TC-WINDOW-*.md](scenarios/) | ✅ 14 scenarios |
-| 3 | Screenshot Scenarios | [scenarios/TC-SCREENSHOT-*.md](scenarios/) | ✅ 10 scenarios |
-| 4 | Visual Scenarios | [scenarios/TC-VISUAL-*.md](scenarios/) | ✅ 5 scenarios |
-| 4 | Visual Guide | [templates/visual-verification-guide.md](templates/visual-verification-guide.md) | ✅ Complete |
-| 5 | Workflow Scenarios | [scenarios/TC-WORKFLOW-*.md](scenarios/) | ✅ 10 scenarios |
-| 5 | Workflow Guide | [templates/workflow-guide.md](templates/workflow-guide.md) | ✅ Complete |
-| 6 | Scenario Template | [templates/scenario-template.md](templates/scenario-template.md) | ✅ Complete |
-| 6 | Contributor Guide | [docs/CONTRIBUTING-TESTS.md](docs/CONTRIBUTING-TESTS.md) | ✅ Complete |
-| 6 | Annotated Example | [templates/example-scenario-annotated.md](templates/example-scenario-annotated.md) | ✅ Complete |
-| 7 | Error Scenarios | [scenarios/TC-ERROR-*.md](scenarios/) | ✅ 8 scenarios |
-| 7 | Result Template | [templates/result-template.md](templates/result-template.md) | ✅ Complete |
-| 7 | Report Template | [templates/report-template.md](templates/report-template.md) | ✅ Complete |
-| 7 | Results Guide | [templates/results-guide.md](templates/results-guide.md) | ✅ Complete |
-| 7 | Sample Result | [results/example/TC-EXAMPLE-001/result.md](results/example/TC-EXAMPLE-001/result.md) | ✅ Complete |
-| 8 | Chat Prompts | [templates/chat-prompts.md](templates/chat-prompts.md) | ✅ Complete |
-| 9 | Scenario Index | [scenarios/README.md](scenarios/README.md) | ✅ Complete |
-
-**Total Scenarios**: 74 (12 MOUSE + 15 KEYBOARD + 14 WINDOW + 10 SCREENSHOT + 5 VISUAL + 10 WORKFLOW + 8 ERROR)
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |

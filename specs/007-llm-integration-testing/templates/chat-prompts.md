@@ -12,12 +12,31 @@ Execute test case TC-MOUSE-001.
 Read the scenario from specs/007-llm-integration-testing/scenarios/TC-MOUSE-001.md and follow these steps:
 
 1. Check all preconditions
-2. Execute each step in order
-3. Take screenshots as specified (before, after, and any intermediate)
-4. Verify each pass criterion
-5. Report the result as PASS, FAIL, or BLOCKED
+2. List monitors to identify configuration
+3. Take all-monitors composite screenshot (before state)
+4. Save the composite metadata JSON
+5. Execute the main action
+6. Take all-monitors composite screenshot (after state)
+7. Save the composite metadata JSON
+8. Verify each pass criterion
+9. Report the result as PASS, FAIL, or BLOCKED
 
 Include your observations for each step.
+```
+
+### Execute with All-Monitors Capture
+
+```text
+Execute test case TC-VISUAL-001a (cross-monitor window movement).
+
+Use all-monitors composite screenshots:
+1. Call screenshot_control with target="all_monitors" for before/after captures
+2. Save metadata JSON files (step-1-before-meta.json, step-1-after-meta.json)
+3. Use metadata to identify which monitor regions had changes
+4. Compute visual diff between before and after screenshots
+5. Report change percentage and affected monitors
+
+If change percentage > 1%, mark as significant change detected.
 ```
 
 ### Execute with Inline Scenario
@@ -224,16 +243,26 @@ Report which tools are working.
 ### Quick Visual Test
 
 ```text
-Take a screenshot of the secondary monitor and describe what you see.
-This validates the screenshot_control tool is working.
+Take an all-monitors composite screenshot and describe what you see.
+This validates the screenshot_control tool with target="all_monitors".
+
+Save the screenshot and metadata:
+- step-1-state.png
+- step-1-state-meta.json
+
+Report:
+1. Number of monitors captured
+2. Total composite image dimensions
+3. What's visible on each monitor (use metadata regions)
 ```
 
 ### Quick Mouse Test
 
 ```text
 Move the mouse to (100, 100) on the secondary monitor.
-Take before and after screenshots.
-Verify the cursor moved.
+Take all-monitors composite screenshots before and after.
+Save metadata JSONs for both.
+Verify the cursor moved by comparing the before/after images.
 ```
 
 ### Quick Keyboard Test
@@ -264,7 +293,93 @@ Expected result: Tool returns error message without crashing.
 ### Execute with Result Comparison
 
 ```text
-Execute TC-VISUAL-001 and compare before/after screenshots.
+Execute TC-VISUAL-001 and compare before/after composite screenshots.
+
+Use all-monitors capture for both screenshots:
+1. Take before screenshot with target="all_monitors"
+2. Execute the window move action
+3. Take after screenshot with target="all_monitors"
+4. Compute visual diff between the composites
+5. Identify which monitors had changes (using metadata regions)
+6. Report:
+   - Total change percentage
+   - Changed pixels count
+   - Per-monitor change analysis
+   - Is change significant (> threshold)?
+
 Describe in detail what visual differences you observe.
-Use this to verify the visual comparison capability.
+```
+
+## All-Monitors Specific Prompts
+
+### Capture All-Monitors Screenshot
+
+```text
+Capture a composite screenshot of all connected monitors.
+
+1. Call screenshot_control with action="capture", target="all_monitors"
+2. Save the screenshot as all-monitors.png
+3. Parse the compositeMetadata from the response
+4. Save metadata as all-monitors-meta.json
+5. Report:
+   - Virtual screen bounds (total area)
+   - Number of monitors captured
+   - Each monitor's position within the composite image
+
+This validates the all-monitors capture capability.
+```
+
+### Cross-Monitor Window Movement Test
+
+```text
+Test cross-monitor window movement with visual verification.
+
+1. Open a window on the primary monitor (or use existing)
+2. Take before all-monitors composite screenshot
+3. Move the window to the secondary monitor
+4. Take after all-monitors composite screenshot
+5. Compare the screenshots
+6. Verify:
+   - Window no longer visible at old position (primary)
+   - Window now visible at new position (secondary)
+   - Change percentage is significant (> 1%)
+
+Report PASS if all verifications succeed.
+```
+
+### Multi-Monitor Visual Diff Analysis
+
+```text
+Perform visual diff analysis on composite screenshots.
+
+Given before and after all-monitors screenshots:
+1. Compute pixel-by-pixel difference
+2. Identify changed regions
+3. Map changes to specific monitors using metadata
+4. Generate diff summary:
+   - Total pixels: {N}
+   - Changed pixels: {N}
+   - Change percentage: {X.XX%}
+   - Monitors with changes: [list]
+
+If generating a diff image, highlight changed pixels with red overlay.
+```
+
+### Verify Monitor Configuration
+
+```text
+Verify the multi-monitor setup for testing.
+
+1. Call screenshot_control with action="list_monitors"
+2. Take an all-monitors composite screenshot
+3. Verify:
+   - At least 2 monitors detected
+   - Composite image dimensions match virtual screen
+   - Each monitor region is accessible in the metadata
+4. Report monitor configuration:
+   - Primary monitor: position, size
+   - Secondary monitor(s): position, size
+   - Virtual screen total bounds
+
+This validates the test environment for multi-monitor scenarios.
 ```

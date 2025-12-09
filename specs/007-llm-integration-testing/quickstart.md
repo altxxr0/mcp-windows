@@ -1,10 +1,20 @@
 # Quickstart: LLM-Based Integration Testing
 
-**Feature**: 007-llm-integration-testing | **Date**: 2025-12-08 | **Version**: 1.0
+**Feature**: 007-llm-integration-testing | **Date**: 2025-01-15 | **Version**: 1.2
 
 ## Overview
 
 This guide explains how to execute LLM-based integration tests for the Windows MCP Server. Unlike traditional test frameworks, **you execute tests by instructing GitHub Copilot through chat**. Copilot invokes the MCP tools directly and uses screenshots for visual verification.
+
+**Key capability**: Capture **all-monitors composite screenshots** before and after each action to ensure no visual changes are missed on any display. The composite metadata enables targeted verification on specific monitors.
+
+### What's New in v1.2
+
+- **All-monitors composite capture**: Single screenshot of all connected displays
+- **Composite metadata**: JSON with monitor regions for targeted analysis
+- **Visual diff service**: Pixel-by-pixel comparison with configurable thresholds
+- **Step-based file naming**: `step-N-before.png`, `step-N-after.png`, `step-N-diff.png`
+- **New test scenarios**: TC-SCREENSHOT-001a/b, TC-VISUAL-001a, TC-VISUAL-006
 
 ---
 
@@ -47,6 +57,73 @@ Expected response should list:
 - `mcp_windows_mcp_s_window_management`
 - `mcp_windows_mcp_s_screenshot_control`
 
+### Test All-Monitors Capture
+
+Verify the composite screenshot capability:
+
+```text
+Take a screenshot of all monitors using target="all_monitors" and show me the result.
+```
+
+Expected response should include:
+- A single composite image showing all connected monitors
+- `compositeMetadata` with `VirtualScreenBounds` and `MonitorRegions`
+- Each monitor's `Index`, `IsPrimary`, `Bounds`, and `ImageX`/`ImageY` position in composite
+
+**Validate the composite metadata**:
+```text
+Capture all-monitors screenshot, save as test-capture.png and test-capture-meta.json.
+Then parse the metadata and report:
+1. Virtual screen total dimensions
+2. Number of monitors
+3. Each monitor's position within the composite image
+```
+
+---
+
+## All-Monitors Workflow (New in v1.2)
+
+### Standard Test Pattern
+
+Every test now follows this pattern for visual verification:
+
+1. **List monitors** to identify configuration
+2. **Before screenshot**: `target="all_monitors"` + save metadata JSON
+3. **Execute action** (mouse move, keyboard input, window operation)
+4. **After screenshot**: `target="all_monitors"` + save metadata JSON
+5. **Visual diff** (optional): Compare before/after for change analysis
+
+### File Naming Convention
+
+| File | Purpose |
+|------|---------|
+| `step-1-before.png` | Composite screenshot before step 1 action |
+| `step-1-before-meta.json` | Metadata with monitor regions |
+| `step-1-after.png` | Composite screenshot after step 1 action |
+| `step-1-after-meta.json` | Metadata with monitor regions |
+| `step-1-diff.png` | Visual diff highlighting changes |
+
+For multi-step workflows, increment the step number: `step-2-before.png`, etc.
+
+### Using Composite Metadata
+
+The metadata enables targeted verification:
+
+```json
+{
+  "VirtualScreenBounds": { "X": -1920, "Y": 0, "Width": 3840, "Height": 1080 },
+  "MonitorRegions": [
+    { "Index": 0, "IsPrimary": true, "ImageX": 1920, "ImageY": 0, ... },
+    { "Index": 1, "IsPrimary": false, "ImageX": 0, "ImageY": 0, ... }
+  ]
+}
+```
+
+**Use cases**:
+- **Cross-monitor detection**: Identify if changes span multiple monitors
+- **Targeted analysis**: Focus on specific monitor region
+- **Window tracking**: Verify window moved from one monitor to another
+
 ---
 
 ## Running a Single Test
@@ -68,17 +145,18 @@ Execute test case TC-MOUSE-001: Basic Mouse Movement
 
 **Steps**:
 1. Call screenshot_control with action="list_monitors" to find secondary monitor
-2. Take a "before" screenshot of the secondary monitor
+2. Take a "before" screenshot of ALL monitors (target="all_monitors")
 3. Move the mouse to the center of the secondary monitor
-4. Take an "after" screenshot
-5. Verify the mouse cursor is visible at the target location
+4. Wait 500ms for UI to stabilize
+5. Take an "after" screenshot of ALL monitors (target="all_monitors")
+6. Verify the mouse cursor is visible at the target location
 
 **Pass Criteria**:
 - list_monitors returns at least 2 monitors
 - Mouse move completes without error
-- Screenshot shows cursor at target location
+- Composite screenshot shows cursor at target location on secondary monitor
 
-Please execute each step, take screenshots, and report the result.
+Please execute each step, take all-monitors screenshots, and report the result.
 ```
 
 ### Step 3: Review Results
@@ -192,7 +270,7 @@ If secondary monitor is not available, mark monitor-dependent tests as BLOCKED a
 Here's a complete example session:
 
 **You:**
-> Execute TC-MOUSE-001: Move the mouse to coordinates (500, 300) on the secondary monitor. Take before and after screenshots. Verify the cursor moved correctly.
+> Execute TC-MOUSE-001: Move the mouse to coordinates (500, 300) on the secondary monitor. Take before and after composite screenshots of ALL monitors. Verify the cursor moved correctly.
 
 **Copilot:**
 > Let me execute this test step by step.
@@ -200,28 +278,33 @@ Here's a complete example session:
 > **Step 1: Enumerate monitors**
 > [Calls screenshot_control with action="list_monitors"]
 > Found 2 monitors:
-> - Monitor 0 (Primary): 0,0 to 2560,1440
-> - Monitor 1 (Secondary): 2560,0 to 5120,1440
+> - Monitor 0 (Primary): 0,0 to 1920,1080
+> - Monitor 1 (Secondary): -1920,0 to 0,1080
 >
-> **Step 2: Before screenshot**
-> [Calls screenshot_control targeting monitor 1]
-> Screenshot captured.
+> **Step 2: Before screenshot (all monitors)**
+> [Calls screenshot_control with action="capture", target="all_monitors", includeCursor=true]
+> Composite screenshot captured (3840x1080).
+> Metadata saved with 2 monitor regions.
 >
 > **Step 3: Move mouse**
-> [Calls mouse_control with action="move", x=3060, y=300]
-> Mouse moved to (3060, 300) - center-left of secondary monitor.
+> [Calls mouse_control with action="move", x=-1420, y=300]
+> Mouse moved to (-1420, 300) - center of secondary monitor.
 >
-> **Step 4: After screenshot**
-> [Calls screenshot_control targeting monitor 1]
-> Screenshot captured.
+> **Step 4: After screenshot (all monitors)**
+> [Calls screenshot_control with action="capture", target="all_monitors", includeCursor=true]
+> Composite screenshot captured (3840x1080).
 >
 > **Step 5: Visual verification**
-> Analyzing the "after" screenshot... I can see the mouse cursor is now visible at approximately the target location on the secondary monitor.
+> Comparing before/after composite screenshots...
+> - Changed pixels: 2,450 (0.06%)
+> - Primary monitor region: No significant changes
+> - Secondary monitor region: Cursor now visible at target position
 >
 > **Result: PASS** ✅
 > - Monitor enumeration: ✅ Found 2 monitors
 > - Mouse movement: ✅ Completed without error
-> - Visual verification: ✅ Cursor visible at target location
+> - Visual verification: ✅ Cursor visible at target location on secondary monitor
+> - Cross-monitor isolation: ✅ Primary monitor unchanged
 
 ---
 

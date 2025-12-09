@@ -28,7 +28,7 @@ Verify the complete workflow of moving a window to a new position and visually v
 
 **MCP Tool**: `screenshot_control`  
 **Action**: `list_monitors`  
-**Purpose**: Identify secondary monitor bounds for targeting
+**Purpose**: Identify all monitors and their bounds for positioning calculations
 
 ### Step 2: Find Notepad Window
 
@@ -40,20 +40,24 @@ Verify the complete workflow of moving a window to a new position and visually v
 
 **Record**: Store the returned handle and current bounds (x, y, width, height).
 
-### Step 3: Before Screenshot (Initial Position)
+### Step 3: Before Screenshot (Initial Position - All Monitors)
 
 **MCP Tool**: `screenshot_control`  
-**Parameters**: `target="monitor"`, `monitorIndex={secondary}`, `includeCursor=true`  
-**Save As**: `before.png`
+**Action**: `capture`  
+**Parameters**: `target="all_monitors"`, `includeCursor=true`  
+**Save As**: `step-1-before.png`  
+**Save Metadata**: `step-1-before-meta.json`
 
-**Note**: Observe and document Notepad's current position in the screenshot.
+**Note**: 
+- Parse `compositeMetadata.monitors` to identify which monitor contains Notepad
+- Using the monitor region, document Notepad's position within that region
 
 ### Step 4: Calculate Target Position
 
-Using secondary monitor bounds from Step 1:
-- Calculate a new position that is visibly different from current position
+Using the monitor bounds from `compositeMetadata`:
+- Calculate a new position within the same or different monitor
 - Suggested: Move to bottom-right quadrant of secondary monitor
-- Example: `x = monitor_x + monitor_width - 600`, `y = monitor_y + monitor_height - 500`
+- Use monitor region to calculate coordinates: `x = region.x + region.width - 600`, `y = region.y + region.height - 500`
 
 ### Step 5: Move Window to New Position
 
@@ -64,19 +68,24 @@ Using secondary monitor bounds from Step 1:
 - `x`: `{calculated_x}`
 - `y`: `{calculated_y}`
 
-### Step 6: After Screenshot (New Position)
+### Step 6: After Screenshot (New Position - All Monitors)
 
 **MCP Tool**: `screenshot_control`  
-**Parameters**: `target="monitor"`, `monitorIndex={secondary}`, `includeCursor=true`  
-**Save As**: `after.png`
+**Action**: `capture`  
+**Parameters**: `target="all_monitors"`, `includeCursor=true`  
+**Save As**: `step-2-after.png`  
+**Save Metadata**: `step-2-after-meta.json`
 
-### Step 7: Visual Verification
+### Step 7: Visual Verification with Composite Screenshots
 
-Compare screenshots:
-- "before.png": Notepad at original position
-- "after.png": Notepad at new position (bottom-right quadrant)
+Compare all-monitors composite screenshots:
+- "step-1-before.png": Notepad at original position within its monitor region
+- "step-2-after.png": Notepad at new position
 
-Verify the window has clearly moved to a different location.
+Using the metadata, verify:
+- Identify Notepad's monitor region in both screenshots
+- Confirm window has moved within or between monitors
+- Check that no unexpected changes occurred on other monitors
 
 ### Step 8: Verify Final Bounds
 

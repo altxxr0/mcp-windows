@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Sbroenne.WindowsMcp.Capture;
 
 namespace Sbroenne.WindowsMcp.Models;
 
@@ -75,6 +76,14 @@ public sealed record ScreenshotControlResult
     public VirtualScreenInfo? VirtualScreen { get; init; }
 
     /// <summary>
+    /// Gets the composite screenshot metadata. Present on all-monitors capture success.
+    /// Contains monitor region information for each display in the composite image.
+    /// </summary>
+    [JsonPropertyName("composite_metadata")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CompositeScreenshotMetadata? CompositeMetadata { get; init; }
+
+    /// <summary>
     /// Creates a successful capture result.
     /// </summary>
     public static ScreenshotControlResult CaptureSuccess(string imageData, int width, int height, string message) =>
@@ -88,6 +97,34 @@ public sealed record ScreenshotControlResult
             Height = height,
             Format = "png"
         };
+
+    /// <summary>
+    /// Creates a successful composite (all-monitors) capture result.
+    /// </summary>
+    /// <param name="imageData">Base64-encoded PNG image data.</param>
+    /// <param name="metadata">Composite screenshot metadata with monitor regions.</param>
+    /// <param name="message">Human-readable success message.</param>
+    /// <returns>A successful composite capture result.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when metadata is null.</exception>
+    public static ScreenshotControlResult CompositeSuccess(
+        string imageData,
+        CompositeScreenshotMetadata metadata,
+        string message)
+    {
+        ArgumentNullException.ThrowIfNull(metadata);
+        return
+        new()
+        {
+            Success = true,
+            ErrorCode = ToSnakeCase(ScreenshotErrorCode.Success),
+            Message = message,
+            ImageData = imageData,
+            Width = metadata.ImageWidth,
+            Height = metadata.ImageHeight,
+            Format = "png",
+            CompositeMetadata = metadata
+        };
+    }
 
     /// <summary>
     /// Creates a successful monitor list result.

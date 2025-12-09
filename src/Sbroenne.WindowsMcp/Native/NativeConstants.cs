@@ -627,4 +627,42 @@ internal static class NativeConstants
     public const int ASFW_ANY = -1;
 
     #endregion
+
+    #region Win32 Error Codes
+
+    /// <summary>Access is denied. ERROR_ACCESS_DENIED (5).</summary>
+    public const int ERROR_ACCESS_DENIED = 5;
+
+    /// <summary>The handle is invalid. ERROR_INVALID_HANDLE (6).</summary>
+    public const int ERROR_INVALID_HANDLE = 6;
+
+    #endregion
+
+    #region Desktop Access Rights (additional)
+
+    /// <summary>Required to read objects on the desktop.</summary>
+    public const uint DESKTOP_READOBJECTS = 0x0001;
+
+    /// <summary>Required to create objects on the desktop.</summary>
+    public const uint DESKTOP_CREATEWINDOW = 0x0002;
+
+    /// <summary>Required to create a menu object on the desktop.</summary>
+    public const uint DESKTOP_CREATEMENU = 0x0004;
+
+    /// <summary>Required to call hooks for the desktop.</summary>
+    public const uint DESKTOP_HOOKCONTROL = 0x0008;
+
+    /// <summary>Required to monitor journal records on a desktop.</summary>
+    public const uint DESKTOP_JOURNALRECORD = 0x0010;
+
+    /// <summary>Required to perform journal playback on a desktop.</summary>
+    public const uint DESKTOP_JOURNALPLAYBACK = 0x0020;
+
+    /// <summary>Required to enumerate objects on the desktop.</summary>
+    public const uint DESKTOP_ENUMERATE = 0x0040;
+
+    /// <summary>Required to use the desktop for writing objects on the desktop.</summary>
+    public const uint DESKTOP_WRITEOBJECTS = 0x0080;
+
+    #endregion
 }

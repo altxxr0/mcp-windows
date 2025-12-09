@@ -200,7 +200,7 @@ public class WindowActivateTests : IClassFixture<WindowTestFixture>
     }
 
     [Fact]
-    public async Task IsForegroundWindow_ReturnsTrueForForeground()
+    public void IsForegroundWindow_ReturnsTrueForForeground()
     {
         // Arrange - Get the current foreground window
         nint foregroundHandle = _windowActivator.GetForegroundWindow();

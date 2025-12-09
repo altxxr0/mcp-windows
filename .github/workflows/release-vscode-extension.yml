@@ -7,8 +7,6 @@ on:
   push:
     tags:
       - 'vscode-v*'
-    branches-ignore:
-      - main
 
 jobs:
   release-vscode-extension:
@@ -66,7 +64,7 @@ jobs:
         cd vscode-extension
         $packageJsonPath = 'package.json'
         $packageJsonContent = Get-Content $packageJsonPath | ConvertFrom-Json
-        
+
         if ($packageJsonContent.version -ne $version) {
           npm version "$version" --no-git-tag-version
           Write-Output "Updated package.json to version $version"

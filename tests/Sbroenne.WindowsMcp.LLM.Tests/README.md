@@ -90,7 +90,7 @@ The tests follow the skUnit MCP Server testing pattern from [Demo.TddMcp](https:
 ## Adding New Scenarios
 
 1. Create a new `.md` file in `Scenarios/`
-2. Follow the skUnit scenario format with `[USER]` prompts and `[AGENT]` + `CHECK` assertions
+2. Follow the skUnit scenario format with `[USER]` prompts and `[AGENT]` + `ASSERT` assertions
 3. Add a test method that loads and runs the scenario:
 
 ```csharp
@@ -101,6 +101,77 @@ public async Task MyNewScenario_WorksAsync()
     await ScenarioRunner.RunAsync(scenarios, SystemUnderTestClient);
 }
 ```
+
+## Writing Good Test Scenarios
+
+### User Prompts: Use Natural Language
+
+**❌ BAD - Leading the witness (tells LLM exactly what to do):**
+```markdown
+## [USER]
+Use window_management with action "find" and title "Notepad". 
+Then use the handle parameter to call action "close".
+```
+
+**✅ GOOD - Natural user request (tests if LLM understands the tools):**
+```markdown
+## [USER]
+I need to find that Notepad window so I can work with it.
+```
+
+The test should verify the LLM can figure out the correct approach from tool descriptions alone, not by being told exactly what to do.
+
+### Assertions: Be Strict
+
+**❌ BAD - Too loose (matches almost anything):**
+```markdown
+### ASSERT ContainsAny
+success, done, ok, window, notepad
+```
+
+**✅ GOOD - Specific required keywords:**
+```markdown
+### ASSERT ContainsAll
+found, handle
+```
+
+### FunctionCall Assertions
+
+FunctionCall assertions verify that a specific MCP tool was called:
+
+```markdown
+### ASSERT FunctionCall
+```json
+{
+  "function_name": "window_management"
+}
+```
+
+> **Note**: `function_name` must be a simple string, not an array. Use `SemanticCondition` and `ContainsAll` assertions to verify behavior rather than trying to assert on specific argument values.
+
+### SemanticCondition: Be Specific
+
+**❌ BAD - Vague condition:**
+```markdown
+### ASSERT SemanticCondition
+The operation was successful
+```
+
+**✅ GOOD - Specific expected behavior:**
+```markdown
+### ASSERT SemanticCondition
+The Notepad window was successfully closed using the explicit window handle
+```
+
+### Testing Handle-Based Workflows
+
+When testing tools that require window handles (Constitution Principle VI: tools are dumb actuators):
+
+1. **First turn**: User asks to find/launch a window
+2. **Assert FunctionCall**: Check that `window_management` was called
+3. **Assert ContainsAll**: Verify `handle` is mentioned in the response
+4. **Subsequent turns**: User refers to "that window" naturally
+5. **Assert SemanticCondition**: Verify the operation used the handle appropriately
 
 ## Troubleshooting
 

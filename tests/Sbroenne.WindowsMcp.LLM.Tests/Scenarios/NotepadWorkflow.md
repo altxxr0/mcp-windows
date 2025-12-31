@@ -1,9 +1,9 @@
 # SCENARIO Notepad Automation Workflow
 
+Tests a complete Notepad automation workflow using handle-based window targeting.
 
 ## [USER]
-Launch Notepad.
-Wait for Notepad to open and confirm it is visible.
+Open Notepad for me.
 
 ## [AGENT]
 
@@ -15,25 +15,18 @@ Wait for Notepad to open and confirm it is visible.
 ```
 
 ### ASSERT ContainsAny
-notepad, launched, opened, visible, success
+Notepad, open, launched
 
 ## [USER]
-In the already open Notepad window, type "Hello from Windows MCP Server!". Do not launch a new Notepad instance.
+Type "Hello from Windows MCP Server!" into that Notepad window.
 
 ## [AGENT]
 
-### ASSERT FunctionCall
-```json
-{
-  "function_name": "ui_automation"
-}
-```
-
 ### ASSERT ContainsAny
-typed, text, hello, success, notepad
+typed, Hello, text
 
 ## [USER]
-Take a screenshot of the already open Notepad window showing the text that was typed. Do not launch a new Notepad instance.
+Take a screenshot of Notepad showing what I typed.
 
 ## [AGENT]
 
@@ -45,7 +38,7 @@ Take a screenshot of the already open Notepad window showing the text that was t
 ```
 
 ## [USER]
-Find the already open Notepad window and report its title and current state (maximized, minimized, or normal). Do not launch a new Notepad instance.
+Is that Notepad window maximized or normal sized?
 
 ## [AGENT]
 
@@ -57,25 +50,10 @@ Find the already open Notepad window and report its title and current state (max
 ```
 
 ### ASSERT ContainsAny
-notepad, Notepad
+normal, minimized, maximized, Normal, Minimized, Maximized
 
 ## [USER]
-Close the Notepad application by clicking its Close button. Target only the notepad.exe process window, not any other application. If a save dialog appears, click "Don't Save" to discard changes.
-
-## [AGENT]
-
-### ASSERT FunctionCall
-```json
-{
-  "function_name": "ui_automation"
-}
-```
-
-### ASSERT ContainsAny
-closed, close, exit, done, discard, click, notepad
-
-## [USER]
-Verify that the notepad.exe process no longer has any open windows.
+Close Notepad. Don't save the file.
 
 ## [AGENT]
 
@@ -87,4 +65,19 @@ Verify that the notepad.exe process no longer has any open windows.
 ```
 
 ### ASSERT ContainsAny
-no notepad, not found, no window, closed, does not exist, no longer, none, 0 windows
+closed, Close
+
+## [USER]
+Verify Notepad is no longer open.
+
+## [AGENT]
+
+### ASSERT FunctionCall
+```json
+{
+  "function_name": "window_management"
+}
+```
+
+### ASSERT ContainsAny
+not found, does not exist, none, no Notepad, 0 windows, no windows

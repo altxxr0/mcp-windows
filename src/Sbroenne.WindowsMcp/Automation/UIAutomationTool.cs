@@ -67,7 +67,6 @@ public sealed partial class UIAutomationTool
     /// </summary>
     /// <param name="action">The action to perform.</param>
     /// <param name="windowHandle">Window handle to target. For interactive actions, the window is automatically activated before the action. Get from window_management tool.</param>
-    /// <param name="app">Application window to target by title (partial match). The server automatically finds and activates the window.</param>
     /// <param name="name">Element name to search for.</param>
     /// <param name="nameContains">Substring to search for in element names (partial match).</param>
     /// <param name="namePattern">Regex pattern to match element names.</param>
@@ -92,21 +91,18 @@ public sealed partial class UIAutomationTool
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The result of the UI Automation operation.</returns>
     [McpServerTool(Name = "ui_automation", Title = "UI Automation", Destructive = true, OpenWorld = false, UseStructuredContent = true)]
-    [Description("UI element interaction via Windows UIA. PRIMARY TOOL for clicking buttons and typing text. Examples: click(app='Notepad', nameContains='Close') clicks the Close button; type(app='Notepad', text='Hello') types into the document. Works with title bar buttons (Close, Minimize, Maximize), dialogs, and all standard UI controls. Use directly with app+nameContains - no find step needed. Actions: click, type, invoke, toggle, ensure_state, select, find, get_tree, wait_for, wait_for_disappear, get_text, focus, scroll_into_view, highlight, ocr. ALWAYS prefer over mouse_control for clicking UI elements.")]
+    [Description("UI element interaction via Windows UIA. WORKFLOW: 1) Call window_management(action='find') to get windowHandle, 2) Use that handle with ui_automation actions. windowHandle is REQUIRED for most actions (click, type, find, get_tree, wait_for, ocr, etc.). Example: click(windowHandle='123456', nameContains='Close'). Works with title bar buttons, dialogs, and all standard UI controls. DIALOG BUTTONS: nameContains='save' finds 'Save'/'Don't save', nameContains='cancel' finds 'Cancel'. Actions NOT requiring windowHandle: invoke/highlight/get_ancestors/get_element_details (use elementId instead), get_element_at_cursor, get_focused_element, ocr_status. ALWAYS prefer over mouse_control.")]
     public async Task<UIAutomationResult> ExecuteAsync(
         [Description("Action: find, get_tree, wait_for, wait_for_disappear, wait_for_state, click, type, select, toggle, ensure_state, invoke, focus, scroll_into_view, get_text, highlight, hide_highlight, ocr, ocr_element, ocr_status, get_element_at_cursor, get_focused_element, get_ancestors, get_element_details")]
         UIAutomationAction action,
 
-        [Description("Window handle to target as a decimal string (copy verbatim from window_management output). For interactive actions (click, type, select, toggle, ensure_state, invoke, focus), the window is automatically activated before the action. If not specified, uses the current foreground window.")]
+        [Description("Window handle to target as a decimal string (get from window_management 'find' or 'list' action). REQUIRED for most actions (click, type, find, get_tree, wait_for, ocr, etc.). NOT required for: invoke/highlight/get_ancestors/get_element_details (use elementId), get_element_at_cursor, get_focused_element, ocr_status.")]
         string? windowHandle = null,
-
-        [Description("Application window to target by title (partial match, case-insensitive). Example: app='Visual Studio Code' or app='Notepad'. The server automatically finds and activates the window. Use this instead of windowHandle for simpler workflows.")]
-        string? app = null,
 
         [Description("Element name to search for (exact match, case-insensitive). For Electron apps, this is typically the ARIA label.")]
         string? name = null,
 
-        [Description("Substring to search for in element names (partial match, case-insensitive). Use instead of 'name' when you only know part of the element's name.")]
+        [Description("Substring to search for in element names (partial match, case-insensitive). PREFERRED for dialog buttons - e.g., nameContains=\"Don't save\" finds the discard button in Windows save dialogs. Use instead of 'name' when you only know part of the element's name.")]
         string? nameContains = null,
 
         [Description("Regex pattern to match element names. Use for complex name matching like 'Button [0-9]+' or 'Save|Cancel'.")]
@@ -174,68 +170,6 @@ public sealed partial class UIAutomationTool
         maxDepth = Math.Clamp(maxDepth, 0, 20);
         timeoutMs = Math.Clamp(timeoutMs, 0, 60000);
 
-        // Resolve 'app' parameter to windowHandle if specified
-        Models.WindowInfoCompact? resolvedWindow = null;
-        if (!string.IsNullOrWhiteSpace(app) && string.IsNullOrWhiteSpace(windowHandle))
-        {
-            var findResult = await _windowService.FindWindowAsync(app, useRegex: false, cancellationToken);
-            if (!findResult.Success || (findResult.Windows?.Count ?? 0) == 0)
-            {
-                // Try listing all windows to provide helpful suggestions
-                var listResult = await _windowService.ListWindowsAsync(cancellationToken: cancellationToken);
-                var availableWindows = listResult.Windows?.Take(10).Select(w => $"'{w.Title}'").ToArray() ?? [];
-                var suggestion = availableWindows.Length > 0
-                    ? $"Available windows: {string.Join(", ", availableWindows)}"
-                    : "No windows found. Ensure the application is running.";
-
-                return UIAutomationResult.CreateFailure(
-                    GetActionName(action),
-                    UIAutomationErrorType.WindowNotFound,
-                    $"No window found matching app='{app}'.",
-                    null,
-                    suggestion);
-            }
-
-            // If multiple windows match, use the first one (most recently active)
-            resolvedWindow = findResult.Windows![0];
-            windowHandle = resolvedWindow.Handle;
-
-            // Activate the window
-            var activateResult = await _windowService.ActivateWindowAsync(nint.Parse(windowHandle), cancellationToken);
-            if (!activateResult.Success)
-            {
-                LogWindowActivationFailed(_logger, resolvedWindow.Title, activateResult.Error);
-            }
-        }
-
-        // AUTO-RECOVERY: If user is searching for controlType='Window' without a window context,
-        // they're trying to find an application window - auto-convert to app parameter
-        if (action == UIAutomationAction.Find &&
-            string.Equals(controlType, "Window", StringComparison.OrdinalIgnoreCase) &&
-            string.IsNullOrWhiteSpace(windowHandle) &&
-            string.IsNullOrWhiteSpace(app))
-        {
-            // Extract the window search term from name/nameContains
-            var windowSearchTerm = name ?? nameContains ?? namePattern;
-            if (!string.IsNullOrWhiteSpace(windowSearchTerm))
-            {
-                // Recursively call with app parameter instead
-                return await ExecuteAsync(
-                    action,
-                    windowHandle: null,
-                    app: windowSearchTerm,
-                    name: null, // Clear name since we're using it for app
-                    nameContains: null,
-                    namePattern: null,
-                    controlType: null, // Clear controlType since we handled it
-                    automationId, className, elementId, parentElementId,
-                    maxDepth, exactDepth, foundIndex, includeChildren, timeoutMs,
-                    text, clearFirst, value, language, desiredState, sortByProminence,
-                    inRegion, nearElement,
-                    cancellationToken);
-            }
-        }
-
         // Validate/parse window handle once (decimal string only)
         nint? parsedWindowHandle = null;
         if (!string.IsNullOrWhiteSpace(windowHandle))
@@ -252,7 +186,17 @@ public sealed partial class UIAutomationTool
             parsedWindowHandle = parsed;
         }
 
-        // Auto-activate target window for interactive actions when windowHandle is specified
+        // REQUIRE windowHandle for actions that need a window scope (Constitution Principle VI: tools must be dumb actuators)
+        if (RequiresWindowHandle(action) && !parsedWindowHandle.HasValue)
+        {
+            return UIAutomationResult.CreateFailure(
+                GetActionName(action),
+                UIAutomationErrorType.InvalidParameter,
+                $"windowHandle is required for {GetActionName(action)} action. Use window_management(action='find') or window_management(action='list') to get a handle first.",
+                null);
+        }
+
+        // Auto-activate target window for interactive actions
         if (parsedWindowHandle.HasValue && IsInteractiveAction(action))
         {
             var activateResult = await ActivateTargetWindowAsync(parsedWindowHandle.Value, GetActionName(action), cancellationToken);
@@ -295,18 +239,10 @@ public sealed partial class UIAutomationTool
                 _ => UIAutomationResult.CreateFailure(GetActionName(action), UIAutomationErrorType.InvalidParameter, $"Unknown action: {action}", null)
             };
 
-            // Attach target window info - use resolved window if available, otherwise get foreground
-            if (result.Success)
+            // Attach target window info for interactive actions
+            if (result.Success && IsInteractiveAction(action))
             {
-                if (resolvedWindow != null)
-                {
-                    // We resolved via 'app' parameter - attach that window info
-                    result = result with { TargetWindow = TargetWindowInfo.FromWindowInfo(resolvedWindow) };
-                }
-                else if (IsInteractiveAction(action))
-                {
-                    result = await AttachTargetWindowInfoAsync(result, cancellationToken);
-                }
+                result = await AttachTargetWindowInfoAsync(result, cancellationToken);
             }
 
             return result;
@@ -327,13 +263,26 @@ public sealed partial class UIAutomationTool
     }
 
     /// <summary>
-    /// Determines if an action is interactive (affects the target window).
+    /// Determines if an action is interactive (affects the target window and should trigger auto-activation).
     /// </summary>
     private static bool IsInteractiveAction(UIAutomationAction action) =>
         action is UIAutomationAction.Click or UIAutomationAction.Type
             or UIAutomationAction.Select or UIAutomationAction.Toggle
-            or UIAutomationAction.EnsureState or UIAutomationAction.Invoke
-            or UIAutomationAction.Focus;
+            or UIAutomationAction.EnsureState or UIAutomationAction.Focus;
+
+    /// <summary>
+    /// Determines if an action requires an explicit windowHandle.
+    /// Constitution Principle VI: Tools must be dumb actuators - no implicit window resolution.
+    /// This includes interactive actions AND search/query actions that need a window scope.
+    /// </summary>
+    private static bool RequiresWindowHandle(UIAutomationAction action) =>
+        action is UIAutomationAction.Click or UIAutomationAction.Type
+            or UIAutomationAction.Select or UIAutomationAction.Toggle
+            or UIAutomationAction.EnsureState or UIAutomationAction.Focus
+            or UIAutomationAction.Find or UIAutomationAction.GetTree
+            or UIAutomationAction.WaitFor or UIAutomationAction.WaitForDisappear
+            or UIAutomationAction.WaitForState or UIAutomationAction.GetText
+            or UIAutomationAction.ScrollIntoView or UIAutomationAction.Ocr;
 
     private static string GetActionName(UIAutomationAction action) =>
         action switch
@@ -491,7 +440,7 @@ public sealed partial class UIAutomationTool
                 UIAutomationErrorType.InvalidParameter,
                 "wait_for requires at least one search criterion. Provide name, nameContains, controlType, or automationId to identify the element to wait for.",
                 null,
-                "Example: wait_for(app='Notepad', nameContains='Don\\'t Save', controlType='Button')");
+                "Example: wait_for(windowHandle='123456', nameContains='Don\\'t Save', controlType='Button')");
         }
 
         var query = new ElementQuery
@@ -870,7 +819,7 @@ public sealed partial class UIAutomationTool
                     UIAutomationErrorType.ElementNotFound,
                     "Element not found. Provide elementId, windowHandle, or search criteria (name, controlType, automationId).",
                     null,
-                    "To focus a window, use: focus(app='Notepad') or focus(windowHandle='12345'). To focus an element, use: focus(app='Notepad', controlType='Edit')");
+                    "To focus a window, use window_management(action='activate', handle='...'). To focus an element, use: focus(windowHandle='12345', controlType='Edit')");
             }
 
             return await _automationService.FocusElementAsync(findResult.Items[0].Id, cancellationToken);
@@ -882,7 +831,7 @@ public sealed partial class UIAutomationTool
             UIAutomationErrorType.InvalidParameter,
             "Focus action requires a target. Provide one of: elementId, windowHandle (or use 'app' parameter), or search criteria (name, controlType, automationId).",
             null,
-            "To focus a window: focus(app='Notepad'). To focus an element: focus(app='Notepad', controlType='Edit', nameContains='Text')");
+            "To focus a window: use window_management(action='activate', handle='...'). To focus an element: focus(windowHandle='12345', controlType='Edit', nameContains='Text')");
     }
 
     private async Task<UIAutomationResult> HandleScrollIntoViewAsync(

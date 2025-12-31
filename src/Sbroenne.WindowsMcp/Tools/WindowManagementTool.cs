@@ -62,8 +62,7 @@ public sealed partial class WindowManagementTool
     /// <param name="arguments">Command-line arguments for the program (optional, for launch action).</param>
     /// <param name="workingDirectory">Working directory for the launched program (optional, for launch action).</param>
     /// <param name="waitForWindow">Wait for the launched application window to appear (default: true for launch action).</param>
-    /// <param name="app">Application window to target by title (partial match, case-insensitive). Example: app='Notepad'. The server finds the window automatically.</param>
-    /// <param name="handle">Window handle (alternative to app parameter). Required when app is not specified for actions that target a specific window.</param>
+    /// <param name="handle">Window handle for actions that target a specific window. Get the handle from the list or find action.</param>
     /// <param name="title">Window title to search for (required for find and wait_for).</param>
     /// <param name="filter">Filter windows by title or process name (for list action).</param>
     /// <param name="regex">Use regex matching for title/filter (default: false).</param>
@@ -80,8 +79,8 @@ public sealed partial class WindowManagementTool
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The result of the window operation including success status and window information.</returns>
     [McpServerTool(Name = "window_management", Title = "Window Management", Destructive = true, OpenWorld = false, UseStructuredContent = true)]
-    [Description("Window control and application launching. To START/OPEN/RUN an application use: launch(programPath='notepad.exe'). DO NOT use wait_for to start apps - it only waits for windows already being launched. Other actions: list, find, activate, minimize, maximize, restore, close, move, resize, move_to_monitor, ensure_visible.")]
-    [return: Description("The result includes success status, window list or single window info (handle, title, process_name, state, is_foreground), and error details if failed. Save the 'handle' value to use with other tools.")]
+    [Description("Window control and application launching. launch(programPath) starts a NEW instance and returns handle - only call ONCE per app, do NOT call again if already open. After launch, the window is focused and ready for keyboard_control. Use activate(handle) to refocus an existing window. CLOSE: sends close request but if app has unsaved changes a dialog appears - use ui_automation to click 'Don't Save' or 'Save' to dismiss it. Actions: launch, list, find, activate, close, minimize, maximize, restore, move, resize.")]
+    [return: Description("The result includes window info (handle, title, process_name, state). SAVE the 'handle' to use with ui_automation, screenshot_control, and close.")]
     public async Task<WindowManagementResult> ExecuteAsync(
         RequestContext<CallToolRequestParams> context,
         [Description("The window action to perform: launch (start an application), list, find, activate, get_foreground, get_state, wait_for_state, minimize, maximize, restore, close, move, resize, set_bounds, wait_for, move_to_monitor, move_and_activate, or ensure_visible")] string action,
@@ -89,8 +88,7 @@ public sealed partial class WindowManagementTool
         [Description("Command-line arguments for the launched program (optional, for launch action).")] string? arguments = null,
         [Description("Working directory for the launched program (optional, for launch action).")] string? workingDirectory = null,
         [Description("Wait for the launched application window to appear (default: true for launch action).")] bool waitForWindow = true,
-        [Description("Application window to target by title (partial match, case-insensitive). Example: app='Notepad' or app='Visual Studio'. The server finds the window automatically. Use this instead of handle for simpler workflows.")] string? app = null,
-        [Description("Window handle (alternative to app parameter). Required when app is not specified for actions that target a specific window.")] string? handle = null,
+        [Description("Window handle for actions that target a specific window (e.g., activate, close, minimize). Get the handle from the 'list' or 'find' action.")] string? handle = null,
         [Description("Window title to search for (required for find and wait_for)")] string? title = null,
         [Description("Filter windows by title or process name (for list action)")] string? filter = null,
         [Description("Use regex matching for title/filter (default: false)")] bool regex = false,
@@ -136,30 +134,8 @@ public sealed partial class WindowManagementTool
                 return result;
             }
 
-            // Resolve 'app' parameter to handle for actions that need a window target
+            // Use handle directly - no app resolution (LLMs should call list/find first)
             string? resolvedHandle = handle;
-            if (!string.IsNullOrWhiteSpace(app) && string.IsNullOrWhiteSpace(handle))
-            {
-                // Actions that need a window target
-                var needsHandle = windowAction.Value is
-                    WindowAction.Activate or WindowAction.Minimize or WindowAction.Maximize or
-                    WindowAction.Restore or WindowAction.Close or WindowAction.Move or
-                    WindowAction.Resize or WindowAction.SetBounds or WindowAction.MoveToMonitor or
-                    WindowAction.GetState or WindowAction.WaitForState or WindowAction.MoveAndActivate or
-                    WindowAction.EnsureVisible;
-
-                if (needsHandle)
-                {
-                    var findResult = await _windowService.FindWindowAsync(app, useRegex: false, cancellationToken);
-                    if (!findResult.Success || findResult.Window is null)
-                    {
-                        return WindowManagementResult.CreateFailure(
-                            WindowManagementErrorCode.WindowNotFound,
-                            $"Window matching '{app}' not found. Use list action to see available windows.");
-                    }
-                    resolvedHandle = findResult.Window.Handle;
-                }
-            }
 
             WindowManagementResult operationResult;
 
@@ -174,7 +150,7 @@ public sealed partial class WindowManagementTool
                     break;
 
                 case WindowAction.Find:
-                    operationResult = await HandleFindAsync(title, app, regex, cancellationToken);
+                    operationResult = await HandleFindAsync(title, regex, cancellationToken);
                     break;
 
                 case WindowAction.Activate:
@@ -214,7 +190,7 @@ public sealed partial class WindowManagementTool
                     break;
 
                 case WindowAction.WaitFor:
-                    operationResult = await HandleWaitForAsync(title, app, regex, timeoutMs, cancellationToken);
+                    operationResult = await HandleWaitForAsync(title, regex, timeoutMs, cancellationToken);
                     break;
 
                 case WindowAction.MoveToMonitor:
@@ -339,7 +315,7 @@ public sealed partial class WindowManagementTool
                         {
                             return WindowManagementResult.CreateWindowSuccess(
                                 windowInfo,
-                                $"Launched '{programPath}' successfully");
+                                $"Launched '{programPath}'. Window is focused and ready. Use this handle for all subsequent operations.");
                         }
 
                         // MainWindowHandle is set but window info is null (window may still be initializing)
@@ -360,7 +336,7 @@ public sealed partial class WindowManagementTool
                         {
                             return WindowManagementResult.CreateWindowSuccess(
                                 processWindow,
-                                $"Launched '{programPath}' successfully");
+                                $"Launched '{programPath}'. Window is focused and ready. Use this handle for all subsequent operations.");
                         }
                     }
                 }
@@ -385,7 +361,7 @@ public sealed partial class WindowManagementTool
                     {
                         return WindowManagementResult.CreateWindowSuccess(
                             processWindow,
-                            $"Launched '{programPath}' successfully");
+                            $"Launched '{programPath}'. Window is focused and ready. Use this handle for all subsequent operations.");
                     }
                 }
 
@@ -442,20 +418,17 @@ public sealed partial class WindowManagementTool
 
     private async Task<WindowManagementResult> HandleFindAsync(
         string? title,
-        string? app,
         bool useRegex,
         CancellationToken cancellationToken)
     {
-        // Accept either 'title' or 'app' parameter for finding windows
-        var searchTerm = title ?? app;
-        if (string.IsNullOrEmpty(searchTerm))
+        if (string.IsNullOrEmpty(title))
         {
             return WindowManagementResult.CreateFailure(
                 WindowManagementErrorCode.MissingRequiredParameter,
-                "Either 'title' or 'app' is required for find action. Example: find(app='Notepad') or find(title='Notepad')");
+                "'title' is required for find action. Example: find(title='Notepad')");
         }
 
-        return await _windowService.FindWindowAsync(searchTerm, useRegex, cancellationToken);
+        return await _windowService.FindWindowAsync(title, useRegex, cancellationToken);
     }
 
     private async Task<WindowManagementResult> HandleActivateAsync(
@@ -614,21 +587,18 @@ public sealed partial class WindowManagementTool
 
     private async Task<WindowManagementResult> HandleWaitForAsync(
         string? title,
-        string? app,
         bool useRegex,
         int? timeoutMs,
         CancellationToken cancellationToken)
     {
-        // Accept either 'title' or 'app' parameter for waiting
-        var searchTerm = title ?? app;
-        if (string.IsNullOrEmpty(searchTerm))
+        if (string.IsNullOrEmpty(title))
         {
             return WindowManagementResult.CreateFailure(
                 WindowManagementErrorCode.MissingRequiredParameter,
-                "Either 'title' or 'app' is required for wait_for action. Example: wait_for(app='Notepad') or wait_for(title='Notepad')");
+                "'title' is required for wait_for action. Example: wait_for(title='Notepad')");
         }
 
-        return await _windowService.WaitForWindowAsync(searchTerm, useRegex, timeoutMs, cancellationToken);
+        return await _windowService.WaitForWindowAsync(title, useRegex, timeoutMs, cancellationToken);
     }
 
     private async Task<WindowManagementResult> HandleMoveToMonitorAsync(

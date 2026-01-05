@@ -8,10 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Window launch action** - `window_management(action='launch', programPath='notepad.exe')`
-  - Launch applications directly from the MCP server
+- **6 Focused UI Tools** - Split `ui_automation` into specialized tools for better LLM understanding:
+  - `ui_find` — Find elements by name, type, or ID
+  - `ui_click` — Click buttons, tabs, checkboxes
+  - `ui_type` — Type text into edit controls
+  - `ui_read` — Read text from elements (UIA + OCR fallback)
+  - `ui_wait` — Wait for elements (mode: appear, disappear, enabled, disabled)
+  - `ui_file` — File operations (Save As dialog handling, English Windows only)
+- **Dedicated `app` tool** - Launch applications with `app(programPath='notepad.exe')`
+  - Separated from window_management for clearer intent
   - Automatic window detection after launch
   - Returns window handle for subsequent operations
+- **Close with discardChanges** - `window_management(action='close', handle='...', discardChanges=true)`
+  - Automatically dismisses "Save?" dialogs by clicking "Don't Save"
+  - English Windows only (detects English button text)
+- **Path auto-normalization** - Forward slashes automatically converted to backslashes
+  - `ui_type(text='C:/Users/file.txt')` → types `C:\Users\file.txt`
+  - Works in `ui_type` and `keyboard_control`
+- **LLM integration tests** - Tools tested with real AI models using [agent-benchmark](https://github.com/mykhaliev/agent-benchmark)
+  - Verifies AI models understand tool descriptions and use them correctly
+  - Catches usability issues before release
 
 ### Changed
 - **Optimized JSON output for token efficiency** - Reduced token usage in tool responses
@@ -21,20 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Handle-based workflow** - All tools now use explicit `windowHandle` for window targeting
   - LLM calls `window_management(action='find')` to get handles, then decides which to use
   - Removed implicit `app` parameter that made window selection decisions
-  - Example: `ui_automation(action='click', windowHandle='123456', name='Save')`
-- **Direct search in actions** - `click`, `type`, `toggle`, `ensure_state`, `get_text`, `wait_for_state` now search directly
-  - No need to call `find` first — just specify what you want to interact with
+  - Example: `ui_click(windowHandle='123456', name='Save')`
+- **snake_case action names** - All action parameters use snake_case (e.g., `find`, `click`, `get_foreground`)
 - **Annotated screenshots by default** - `screenshot_control` now includes element overlays automatically
   - Element names, types, and coordinates embedded in the image
-
-### Changed
-- **Consolidated tools** - Removed redundant actions (`combo`, `click_element`, `capture_annotated`)
-  - Use `keyboard_control(action='press', key='c', modifiers='ctrl')` instead of `combo`
-  - Use `ui_automation(action='click')` instead of `click_element`
-  - Use `screenshot_control` (annotate=true is now default) instead of `capture_annotated`
 - **Simplified workflow** - Most tasks now require fewer tool calls
   - Old: `window_management(action='activate')` → `ui_automation(action='find')` → `ui_automation(action='click')`
-  - New: `window_management(action='find')` → `ui_automation(action='click', windowHandle='...', name='Save')`
+  - New: `window_management(action='find')` → `ui_click(windowHandle='...', name='Save')`
 
 ## [1.1.4] - 2025-12-28
 

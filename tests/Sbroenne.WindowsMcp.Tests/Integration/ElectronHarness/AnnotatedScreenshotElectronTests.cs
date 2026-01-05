@@ -14,6 +14,7 @@ namespace Sbroenne.WindowsMcp.Tests.Integration.ElectronHarness;
 /// Validates that annotated screenshots correctly capture interactive elements in Chromium-based apps.
 /// </summary>
 [Collection("ElectronHarness")]
+[Trait("Category", "RequiresDesktop")]
 public sealed class AnnotatedScreenshotElectronTests : IDisposable
 {
     private readonly ElectronHarnessFixture _fixture;
@@ -22,7 +23,6 @@ public sealed class AnnotatedScreenshotElectronTests : IDisposable
     private readonly AnnotatedScreenshotService _annotatedScreenshotService;
     private readonly ScreenshotService _screenshotService;
     private readonly LegacyOcrService _ocrService;
-    private readonly VisualDiffService _visualDiffService;
     private readonly string _windowHandleString;
 
     public AnnotatedScreenshotElectronTests(ElectronHarnessFixture fixture)
@@ -59,7 +59,7 @@ public sealed class AnnotatedScreenshotElectronTests : IDisposable
             monitorService,
             mouseService,
             keyboardService,
-            windowService,
+            windowActivator,
             elevationDetector,
             NullLogger<UIAutomationService>.Instance);
 
@@ -80,9 +80,6 @@ public sealed class AnnotatedScreenshotElectronTests : IDisposable
 
         // OCR service for verifying annotation labels
         _ocrService = new LegacyOcrService(NullLogger<LegacyOcrService>.Instance);
-
-        // Visual diff service for comparing annotated vs non-annotated screenshots
-        _visualDiffService = new VisualDiffService();
     }
 
     public void Dispose()
@@ -404,8 +401,10 @@ public sealed class AnnotatedScreenshotElectronTests : IDisposable
             Assert.False(
                 string.IsNullOrEmpty(element.Id),
                 $"Element {element.Index} should have a valid Id");
-            Assert.Contains("window:", element.Id);
-            Assert.Contains("runtime:", element.Id);
+            // Element IDs are now short numeric identifiers (e.g., "1", "2", "352")
+            Assert.True(
+                int.TryParse(element.Id, out _),
+                $"Element ID '{element.Id}' should be a numeric string");
         }
     }
 
@@ -517,43 +516,6 @@ public sealed class AnnotatedScreenshotElectronTests : IDisposable
     #endregion
 
     #region Visual Annotation Verification Tests
-
-    [Fact]
-    public async Task CaptureAsync_AnnotationsAreVisuallyDifferentFromPlainScreenshot()
-    {
-        // Act - Capture plain screenshot (no annotations)
-        var plainScreenshotRequest = new ScreenshotControlRequest
-        {
-            Action = ScreenshotAction.Capture,
-            Target = CaptureTarget.Window,
-            WindowHandle = _windowHandleString,
-            ImageFormat = ImageFormat.Png,
-            Quality = 100,
-            OutputMode = OutputMode.Inline
-        };
-        var plainResult = await _screenshotService.ExecuteAsync(plainScreenshotRequest);
-        Assert.True(plainResult.Success, $"Plain screenshot failed: {plainResult.Message}");
-
-        // Capture annotated screenshot
-        var annotatedResult = await _annotatedScreenshotService.CaptureAsync(
-            windowHandle: _windowHandleString,
-            format: ImageFormat.Png);
-        Assert.True(annotatedResult.Success, $"Annotated capture failed: {annotatedResult.ErrorMessage}");
-
-        // Compare using visual diff
-        var diffResult = await _visualDiffService.ComputeDiffAsync(
-            plainResult.ImageData!,
-            annotatedResult.ImageData!,
-            "plain",
-            "annotated");
-
-        // Assert - annotated screenshot should have visible differences (the drawn labels and boxes)
-        Assert.True(diffResult.Success, $"Visual diff failed: {diffResult.Error}");
-        Assert.True(diffResult.ChangedPixels > 0,
-            "Annotated screenshot should have visual differences from plain screenshot");
-        Assert.True(diffResult.ChangePercentage > 0.1,
-            $"Expected at least 0.1% difference for annotations, got {diffResult.ChangePercentage:F2}%");
-    }
 
     [Fact]
     public async Task CaptureAsync_OcrFindsNumberLabelsInAnnotatedImage()

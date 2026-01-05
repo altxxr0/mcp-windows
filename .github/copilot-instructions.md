@@ -1,24 +1,54 @@
 # Copilot Instructions for mcp-windows
 
-## LLM Test Scenarios - Critical Rules
+## Project Constitution
 
-**NEVER modify test scenario USER prompts to include implementation hints.**
+**ALWAYS read [.specify/memory/constitution.md](.specify/memory/constitution.md) for authoritative project principles.**
 
-Test scenarios represent what REAL USERS would say. If a test fails because the LLM can't figure something out:
-1. ✅ Improve the TOOL GUIDANCE (descriptions, parameter hints)
-2. ✅ Improve the SYSTEM PROMPTS (WindowsAutomationPrompts.cs)
-3. ❌ NEVER add hints to the test USER prompts (this defeats the purpose of the test)
+The constitution is NON-NEGOTIABLE and covers:
+- Test-First Development (Principle I)
+- MCP Protocol Compliance (Principle III)
+- Augmentation, Not Duplication (Principle VI) - tools are "dumb actuators"
+- Microsoft Libraries First (Principle VII)
+- Security Best Practices (Principle VIII)
+- Modern .NET & C# (Principle XIII)
+- xUnit Testing (Principle XIV)
+- LLM Integration Testing with agent-benchmark (Principle XXIII)
+- Token Optimization for LLM Efficiency (Principle XXIV)
+- UI Automation First (Principle XXV) - semantic UI automation is primary approach
+- And more (25 principles total)...
 
-The test USER prompts should be:
-- Natural language a real user would type
-- Free of implementation details (tool names, parameter names, exact syntax)
-- The "specification" of what the LLM should be able to handle
+## Automation Patterns Reference
 
-If a test fails, ASK THE USER before making changes - don't assume modifying test prompts is acceptable.
+**ALWAYS consult FlaUI and pywinauto when adding automation code or debugging issues.**
 
-## Constitution Principle VI
+These are the reference implementations for Windows UI automation patterns:
 
-Tools MUST be "dumb actuators"—return raw data for LLM interpretation. This means:
-- No `app` parameter that does automatic window lookup
-- Use explicit handles obtained from `find` or `list` actions
-- The LLM is responsible for orchestration, tools just execute
+### Reference Repositories
+- **FlaUI**: https://github.com/FlaUI/FlaUI - C# UI Automation library
+- **pywinauto**: https://github.com/pywinauto/pywinauto - Python Windows automation
+
+### Key Patterns to Reference
+
+| Pattern | FlaUI Reference | pywinauto Reference |
+|---------|-----------------|---------------------|
+| Modal windows | `window.ModalWindows` with `Retry.WhileEmpty` (1s timeout) | `app.Dialog` / `app.SaveAs` as separate windows |
+| Save dialogs | `UtilityMethods.CloseWindowWithDontSave` | `app.SaveAs.Edit.set_edit_text()` + `.Save.click()` |
+| Wait patterns | `Wait.UntilInputIsProcessed()`, `Retry.While*` | `.wait('ready')`, `Timings.window_find_timeout` |
+| Click fallback | `element.Click()` → `Mouse.Click(element.GetClickablePoint())` | `ctrl.click_input()` → `ctrl.click()` |
+
+### When to Check These Repos
+
+1. **Adding new UI automation features**: Search for similar functionality first
+2. **Debugging automation failures**: Check how they handle edge cases
+3. **Handling modal dialogs**: Always use FlaUI's ModalWindows pattern
+4. **Save/Open dialogs**: Reference pywinauto's dialog handling
+5. **Timing/wait issues**: Check their retry and wait strategies
+
+## Testing
+
+**See [testing.instructions.md](.github/testing.instructions.md) for complete testing guidance.**
+
+Quick reference:
+- **Unit tests**: `dotnet test --filter "FullyQualifiedName~Unit"`
+- **Integration tests**: `dotnet test --filter "FullyQualifiedName~Integration"` (ALL MUST PASS)
+- **LLM tests**: Use `Run-LLMTests.ps1` script (expensive - only when requested)

@@ -6,6 +6,7 @@ using Sbroenne.WindowsMcp.Capture;
 using Sbroenne.WindowsMcp.Configuration;
 using Sbroenne.WindowsMcp.Input;
 using Sbroenne.WindowsMcp.Logging;
+using Sbroenne.WindowsMcp.Models;
 using Sbroenne.WindowsMcp.Tests.Fixtures;
 using Sbroenne.WindowsMcp.Tools;
 using Sbroenne.WindowsMcp.Window;
@@ -100,7 +101,7 @@ public sealed class MouseControlToolMonitorIndexTests : IClassFixture<MultiMonit
         // on whether we can make monitorIndex nullable or detect if it was explicitly provided.
         var result = await _tool.ExecuteAsync(
             context: CreateMockContext(),
-            action: "click",
+            action: MouseAction.Click,
             x: x,
             y: y);
 
@@ -122,7 +123,7 @@ public sealed class MouseControlToolMonitorIndexTests : IClassFixture<MultiMonit
         // Act
         var result = await _tool.ExecuteAsync(
             context: CreateMockContext(),
-            action: "click",
+            action: MouseAction.Click,
             x: x,
             y: y,
             monitorIndex: invalidIndex);
@@ -146,7 +147,7 @@ public sealed class MouseControlToolMonitorIndexTests : IClassFixture<MultiMonit
         // Act
         var result = await _tool.ExecuteAsync(
             context: CreateMockContext(),
-            action: "click",
+            action: MouseAction.Click,
             x: x,
             y: y,
             monitorIndex: monitorIndex);
@@ -169,7 +170,7 @@ public sealed class MouseControlToolMonitorIndexTests : IClassFixture<MultiMonit
         // Act
         var result = await _tool.ExecuteAsync(
             context: CreateMockContext(),
-            action: "click");
+            action: MouseAction.Click);
         // Note: monitorIndex parameter omitted - should use default (0)
 
         // Assert - coordinate-less actions should work without explicit monitorIndex
@@ -188,7 +189,7 @@ public sealed class MouseControlToolMonitorIndexTests : IClassFixture<MultiMonit
         // Act
         var result = await _tool.ExecuteAsync(
             context: CreateMockContext(),
-            action: "move",
+            action: MouseAction.Move,
             x: x,
             y: y,
             monitorIndex: monitorIndex);
@@ -210,7 +211,7 @@ public sealed class MouseControlToolMonitorIndexTests : IClassFixture<MultiMonit
         // Act - Attempt drag without monitorIndex (should fail validation)
         var result = await _tool.ExecuteAsync(
             context: CreateMockContext(),
-            action: "drag",
+            action: MouseAction.Drag,
             x: startX,  // Note: drag uses x/y for start position
             y: startY,
             endX: endX,
@@ -234,7 +235,7 @@ public sealed class MouseControlToolMonitorIndexTests : IClassFixture<MultiMonit
         // Act
         var result = await _tool.ExecuteAsync(
             context: CreateMockContext(),
-            action: "move",
+            action: MouseAction.Move,
             x: x,
             y: y,
             monitorIndex: monitorIndex);
@@ -261,7 +262,7 @@ public sealed class MouseControlToolMonitorIndexTests : IClassFixture<MultiMonit
         // Act
         var result = await _tool.ExecuteAsync(
             context: CreateMockContext(),
-            action: "click",
+            action: MouseAction.Click,
             x: x,
             y: y,
             monitorIndex: monitorIndex);
@@ -285,7 +286,7 @@ public sealed class MouseControlToolMonitorIndexTests : IClassFixture<MultiMonit
         // Act
         var result = await _tool.ExecuteAsync(
             context: CreateMockContext(),
-            action: "click");
+            action: MouseAction.Click);
 
         // Assert - Coordinate-less operations don't have explicit monitor context
         Assert.True(result.Success);
@@ -307,7 +308,7 @@ public sealed class MouseControlToolMonitorIndexTests : IClassFixture<MultiMonit
         // Act
         var result = await _tool.ExecuteAsync(
             context: CreateMockContext(),
-            action: "get_position");
+            action: MouseAction.GetPosition);
 
         // Assert - Should return success with coordinates and monitor context
         Assert.True(result.Success, $"get_position should succeed. Error: {result.Error}");
@@ -326,7 +327,7 @@ public sealed class MouseControlToolMonitorIndexTests : IClassFixture<MultiMonit
         // Act - get_position should determine which monitor contains the cursor
         var result = await _tool.ExecuteAsync(
             context: CreateMockContext(),
-            action: "get_position");
+            action: MouseAction.GetPosition);
 
         // Assert - Should identify a valid monitor and return its dimensions
         Assert.True(result.Success);
@@ -343,3 +344,5 @@ public sealed class MouseControlToolMonitorIndexTests : IClassFixture<MultiMonit
         Assert.InRange(result.FinalPosition.Y, 0, identifiedMonitor.Height - 1);
     }
 }
+
+

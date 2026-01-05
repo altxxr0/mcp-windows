@@ -9,7 +9,7 @@ namespace Sbroenne.WindowsMcp.Input;
 /// Implementation of keyboard input operations using Windows SendInput API.
 /// Uses KEYEVENTF_UNICODE for layout-independent text typing.
 /// </summary>
-public sealed class KeyboardInputService : IKeyboardInputService, IDisposable
+public sealed class KeyboardInputService : IDisposable
 {
     private readonly KeyboardConfiguration _configuration;
     private readonly HeldKeyTracker _heldKeyTracker;
@@ -210,9 +210,14 @@ public sealed class KeyboardInputService : IKeyboardInputService, IDisposable
         // Try to get the virtual key code
         if (!VirtualKeyMapper.TryGetVirtualKeyCode(keyName, out var virtualKeyCode))
         {
+            // Provide helpful error message, especially for shortcut attempts like "Ctrl+S"
+            var errorMsg = keyName.Contains('+', StringComparison.Ordinal)
+                ? $"Unknown key: '{keyName}'. For shortcuts like Ctrl+S, use key='S' with modifiers='Ctrl'. TIP: For saving files, use ui_file tool instead."
+                : $"Unknown key: '{keyName}'. See documentation for valid key names.";
+
             return Task.FromResult(KeyboardControlResult.CreateFailure(
                 KeyboardControlErrorCode.InvalidKey,
-                $"Unknown key: '{keyName}'. See documentation for valid key names."));
+                errorMsg));
         }
 
         // Validate repeat count

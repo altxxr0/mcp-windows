@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Sbroenne.WindowsMcp.Capture;
@@ -15,9 +14,9 @@ namespace Sbroenne.WindowsMcp.Tools;
 [McpServerToolType]
 public sealed partial class ScreenshotControlTool
 {
-    private readonly IScreenshotService _screenshotService;
-    private readonly IAnnotatedScreenshotService _annotatedScreenshotService;
-    private readonly IWindowService _windowService;
+    private readonly ScreenshotService _screenshotService;
+    private readonly AnnotatedScreenshotService _annotatedScreenshotService;
+    private readonly WindowService _windowService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ScreenshotControlTool"/> class.
@@ -26,9 +25,9 @@ public sealed partial class ScreenshotControlTool
     /// <param name="annotatedScreenshotService">The annotated screenshot service for element discovery.</param>
     /// <param name="windowService">The window service for finding windows by title.</param>
     public ScreenshotControlTool(
-        IScreenshotService screenshotService,
-        IAnnotatedScreenshotService annotatedScreenshotService,
-        IWindowService windowService)
+        ScreenshotService screenshotService,
+        AnnotatedScreenshotService annotatedScreenshotService,
+        WindowService windowService)
     {
         _screenshotService = screenshotService;
         _annotatedScreenshotService = annotatedScreenshotService;
@@ -43,13 +42,18 @@ public sealed partial class ScreenshotControlTool
     /// If you see a button at pixel (450, 300) in the screenshot, use mouse_control(x=450, y=300, monitorIndex=N).
     ///
     /// Returns base64-encoded image data (JPEG by default, configurable via imageFormat parameter).
-    /// Default: JPEG format at quality 85, at logical resolution (matching mouse coordinate space).
+    /// Default: JPEG format at quality 60 (LLM-optimized), at logical resolution (matching mouse coordinate space).
     ///
-    /// **ANNOTATION MODE** (annotate=true):
-    /// - Returns screenshot with numbered labels on interactive UI elements
-    /// - Includes element list with index, name, controlType, and elementId
-    /// - Use this to discover what elements are available before clicking/typing
-    /// - Elements can be used directly with ui_automation actions
+    /// **ANNOTATION MODE** (annotate=true, default):
+    /// - Returns element list with index, name, controlType, boundingRect, and elementId
+    /// - By default, image data is NOT included (saves ~100K+ tokens per call!)
+    /// - Element metadata provides all information needed for UI automation
+    /// - Set includeImage=true only if you need to visually inspect the screenshot
+    /// - Elements can be used directly with ui_automation actions using elementId
+    ///
+    /// **PLAIN SCREENSHOT** (annotate=false):
+    /// - Returns full image data without element discovery
+    /// - Use when you need raw visual inspection without structured elements
     ///
     /// Monitor targeting:
     /// - 'primary_screen': Captures the main display (with taskbar). Most common choice.
@@ -72,30 +76,30 @@ public sealed partial class ScreenshotControlTool
     /// <param name="regionHeight">Height in pixels for 'region' target. Must be positive.</param>
     /// <param name="includeCursor">Include mouse cursor in capture. Default: false.</param>
     /// <param name="imageFormat">Screenshot format: 'jpeg'/'jpg' or 'png'. Default: 'jpeg' (LLM-optimized).</param>
-    /// <param name="quality">Image compression quality 1-100. Default: 85. Only affects JPEG format.</param>
+    /// <param name="quality">Image compression quality 1-100. Default: 60 (LLM-optimized). Only affects JPEG format.</param>
     /// <param name="outputMode">How to return the screenshot. 'inline' returns base64 data, 'file' saves to disk and returns path. Default: 'inline'.</param>
     /// <param name="outputPath">Directory or file path for output when outputMode is 'file'. If directory, auto-generates filename. If null, uses temp directory.</param>
+    /// <param name="includeImage">Include the image in the response. Default: false for annotated screenshots (element metadata is sufficient). Set true to see the actual screenshot pixels.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The result containing base64-encoded image data or file path, dimensions, original dimensions (if scaled), file size, and error details if failed.</returns>
     [McpServerTool(Name = "screenshot_control", Title = "Screenshot Capture", ReadOnly = true, Idempotent = true, OpenWorld = false, UseStructuredContent = true)]
-    [Description("Capture screenshots with UI element discovery. Default: returns annotated screenshot with numbered elements. WINDOW CAPTURE: First call window_management(action='find') to get handle, then screenshot_control(target='window', windowHandle='123456'). Targets: primary_screen (default), secondary_screen, monitor, window (requires windowHandle), region, all_monitors. Use annotate=false for plain screenshot.")]
-    [return: Description("The result of the screenshot operation including success status, base64-encoded image data or file path, annotated elements (if annotate=true), and error details if failed.")]
     public async Task<ScreenshotControlResult> ExecuteAsync(
         RequestContext<CallToolRequestParams> context,
-        [Description("The action to perform. Valid values: 'capture' (take screenshot), 'list_monitors' (enumerate displays). Default: 'capture'")] string? action = null,
-        [Description("Overlay numbered labels on interactive UI elements and return element list (default: true). Set false for plain screenshot without element discovery.")] bool annotate = true,
-        [Description("Capture target. Valid values: 'primary_screen' (main display with taskbar), 'secondary_screen' (other monitor, only for 2-monitor setups), 'monitor' (by index), 'window' (by handle), 'region' (by coordinates), 'all_monitors' (composite of all displays). Default: 'primary_screen'")] string? target = null,
-        [Description("Monitor index for 'monitor' target (0-based). Use 'list_monitors' to get available indices.")] int? monitorIndex = null,
-        [Description("Window handle (HWND) as a decimal string for 'window' target. Get from window_management output and pass it through verbatim.")] string? windowHandle = null,
-        [Description("X coordinate (left) for 'region' target. Can be negative for multi-monitor setups.")] int? regionX = null,
-        [Description("Y coordinate (top) for 'region' target. Can be negative for multi-monitor setups.")] int? regionY = null,
-        [Description("Width in pixels for 'region' target. Must be positive.")] int? regionWidth = null,
-        [Description("Height in pixels for 'region' target. Must be positive.")] int? regionHeight = null,
-        [Description("Include mouse cursor in capture. Default: false")] bool includeCursor = false,
-        [Description("Screenshot format: 'jpeg'/'jpg' or 'png'. Default: 'jpeg' (LLM-optimized).")] string? imageFormat = null,
-        [Description("Image compression quality 1-100. Default: 85. Only affects JPEG format.")] int? quality = null,
-        [Description("How to return the screenshot. 'inline' returns base64 data, 'file' saves to disk and returns path. Default: 'inline'.")] string? outputMode = null,
-        [Description("Directory or file path for output when outputMode is 'file'. If directory, auto-generates filename. If null, uses temp directory.")] string? outputPath = null,
+        string? action = null,
+        bool annotate = true,
+        string? target = null,
+        int? monitorIndex = null,
+        string? windowHandle = null,
+        int? regionX = null,
+        int? regionY = null,
+        int? regionWidth = null,
+        int? regionHeight = null,
+        bool includeCursor = false,
+        string? imageFormat = null,
+        int? quality = null,
+        string? outputMode = null,
+        string? outputPath = null,
+        bool? includeImage = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -178,7 +182,10 @@ public sealed partial class ScreenshotControlTool
         // Handle annotated screenshot mode
         if (annotate && screenshotAction == ScreenshotAction.Capture)
         {
-            return await CaptureAnnotatedAsync(windowHandle, parsedImageFormat, parsedQuality, parsedOutputMode, outputPath, cancellationToken);
+            // Default: don't include image for annotated screenshots (element metadata is sufficient)
+            // This saves ~100K+ tokens per screenshot
+            var shouldIncludeImage = includeImage ?? false;
+            return await CaptureAnnotatedAsync(windowHandle, parsedImageFormat, parsedQuality, parsedOutputMode, outputPath, shouldIncludeImage, cancellationToken);
         }
 
         // Build request with all parameters
@@ -286,6 +293,7 @@ public sealed partial class ScreenshotControlTool
         int quality,
         OutputMode? outputMode,
         string? outputPath,
+        bool includeImage,
         CancellationToken cancellationToken)
     {
         var format = imageFormat ?? ScreenshotConfiguration.DefaultImageFormat;
@@ -340,14 +348,18 @@ public sealed partial class ScreenshotControlTool
             }
         }
 
-        // Return inline or file result
-        var returnInline = outputMode != OutputMode.File && savedFilePath == null;
+        // Determine if we should return image data inline
+        // By default, don't include image to save tokens (element metadata is sufficient for LLM)
+        var returnImageInline = includeImage && outputMode != OutputMode.File && savedFilePath == null;
+
         return ScreenshotControlResult.AnnotatedSuccess(
-            returnInline ? result.ImageData : null,
+            returnImageInline ? result.ImageData : null,
             result.Width ?? 0,
             result.Height ?? 0,
             result.ImageFormat ?? "jpeg",
             result.Elements ?? [],
-            savedFilePath);
+            savedFilePath,
+            result.OriginalWidth,
+            result.OriginalHeight);
     }
 }

@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sbroenne.WindowsMcp.Automation;
+using Sbroenne.WindowsMcp.Automation.Tools;
 using Sbroenne.WindowsMcp.Capture;
 using Sbroenne.WindowsMcp.Configuration;
 using Sbroenne.WindowsMcp.Input;
@@ -10,6 +11,61 @@ using Sbroenne.WindowsMcp.Prompts;
 using Sbroenne.WindowsMcp.Resources;
 using Sbroenne.WindowsMcp.Tools;
 using Sbroenne.WindowsMcp.Window;
+
+// Handle --version/-v flag for startup testing
+if (args.Length > 0 && (args[0] == "--version" || args[0] == "-v"))
+{
+    Console.WriteLine("sbroenne.windows-mcp version 1.0.0");
+    Console.WriteLine("Testing DI container initialization...");
+
+    try
+    {
+        var testBuilder = Host.CreateApplicationBuilder([]);
+        testBuilder.Logging.ClearProviders();
+
+        // Register all services (same as production)
+        testBuilder.Services.AddSingleton(_ => MouseConfiguration.FromEnvironment());
+        testBuilder.Services.AddSingleton(_ => KeyboardConfiguration.FromEnvironment());
+        testBuilder.Services.AddSingleton(_ => WindowConfiguration.FromEnvironment());
+        testBuilder.Services.AddSingleton(_ => ScreenshotConfiguration.FromEnvironment());
+        testBuilder.Services.AddSingleton<MouseInputService>();
+        testBuilder.Services.AddSingleton<KeyboardInputService>();
+        testBuilder.Services.AddSingleton<ElevationDetector>();
+        testBuilder.Services.AddSingleton<SecureDesktopDetector>();
+        testBuilder.Services.AddSingleton<MouseOperationLogger>();
+        testBuilder.Services.AddSingleton<KeyboardOperationLogger>();
+        testBuilder.Services.AddSingleton<WindowOperationLogger>();
+        testBuilder.Services.AddSingleton<ScreenshotOperationLogger>();
+        testBuilder.Services.AddSingleton<WindowEnumerator>();
+        testBuilder.Services.AddSingleton<WindowActivator>();
+        testBuilder.Services.AddSingleton<WindowService>();
+        testBuilder.Services.AddSingleton<MonitorService>();
+        testBuilder.Services.AddSingleton<ImageProcessor>();
+        testBuilder.Services.AddSingleton<ScreenshotService>();
+        testBuilder.Services.AddSingleton<LegacyOcrService>();
+        testBuilder.Services.AddSingleton<UIAutomationThread>();
+        testBuilder.Services.AddSingleton<UIAutomationService>();
+        testBuilder.Services.AddSingleton<AnnotatedScreenshotLogger>();
+        testBuilder.Services.AddSingleton<AnnotatedScreenshotService>();
+
+        var testHost = testBuilder.Build();
+
+        // Try to resolve key services to verify DI
+        Console.WriteLine("  WindowService: " + (testHost.Services.GetService<WindowService>() != null ? "OK" : "FAILED"));
+        Console.WriteLine("  UIAutomationService: " + (testHost.Services.GetService<UIAutomationService>() != null ? "OK" : "FAILED"));
+        Console.WriteLine("  ScreenshotService: " + (testHost.Services.GetService<ScreenshotService>() != null ? "OK" : "FAILED"));
+        Console.WriteLine("  KeyboardInputService: " + (testHost.Services.GetService<KeyboardInputService>() != null ? "OK" : "FAILED"));
+        Console.WriteLine("DI container initialization: OK");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"DI container initialization FAILED: {ex.Message}");
+        Console.WriteLine(ex.ToString());
+        return 1;
+    }
+
+    return 0;
+}
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -29,34 +85,33 @@ builder.Services.AddSingleton(_ => WindowConfiguration.FromEnvironment());
 builder.Services.AddSingleton(_ => ScreenshotConfiguration.FromEnvironment());
 
 // Register application services
-builder.Services.AddSingleton<IMouseInputService, MouseInputService>();
-builder.Services.AddSingleton<IKeyboardInputService, KeyboardInputService>();
-builder.Services.AddSingleton<IElevationDetector, ElevationDetector>();
-builder.Services.AddSingleton<ISecureDesktopDetector, SecureDesktopDetector>();
+builder.Services.AddSingleton<MouseInputService>();
+builder.Services.AddSingleton<KeyboardInputService>();
+builder.Services.AddSingleton<ElevationDetector>();
+builder.Services.AddSingleton<SecureDesktopDetector>();
 builder.Services.AddSingleton<MouseOperationLogger>();
 builder.Services.AddSingleton<KeyboardOperationLogger>();
 builder.Services.AddSingleton<WindowOperationLogger>();
 builder.Services.AddSingleton<ScreenshotOperationLogger>();
 
 // Register window management services
-builder.Services.AddSingleton<IWindowEnumerator, WindowEnumerator>();
-builder.Services.AddSingleton<IWindowActivator, WindowActivator>();
-builder.Services.AddSingleton<IWindowService, WindowService>();
+builder.Services.AddSingleton<WindowEnumerator>();
+builder.Services.AddSingleton<WindowActivator>();
+builder.Services.AddSingleton<WindowService>();
 
 // Register screenshot capture services
-builder.Services.AddSingleton<IMonitorService, MonitorService>();
-builder.Services.AddSingleton<IImageProcessor, ImageProcessor>();
-builder.Services.AddSingleton<IScreenshotService, ScreenshotService>();
-builder.Services.AddSingleton<IVisualDiffService, VisualDiffService>();
+builder.Services.AddSingleton<MonitorService>();
+builder.Services.AddSingleton<ImageProcessor>();
+builder.Services.AddSingleton<ScreenshotService>();
 
 // Register OCR services (Windows.Media.Ocr legacy engine)
-builder.Services.AddSingleton<IOcrService, LegacyOcrService>();
+builder.Services.AddSingleton<LegacyOcrService>();
 
 // Register UI Automation services
 builder.Services.AddSingleton<UIAutomationThread>();
-builder.Services.AddSingleton<IUIAutomationService, UIAutomationService>();
+builder.Services.AddSingleton<UIAutomationService>();
 builder.Services.AddSingleton<AnnotatedScreenshotLogger>();
-builder.Services.AddSingleton<IAnnotatedScreenshotService, AnnotatedScreenshotService>();
+builder.Services.AddSingleton<AnnotatedScreenshotService>();
 
 // Configure MCP server with stdio transport
 builder.Services
@@ -68,21 +123,45 @@ builder.Services
             Version = "1.0.0",
         };
         options.ServerInstructions =
-            "WORKFLOW: 1) window_management(find/launch) → get handle, " +
-            "2) Use that handle for ALL subsequent operations on that window. " +
-            "CRITICAL: NEVER launch an app you've already launched - reuse the handle from the previous launch. " +
-            "After launch, the window is focused and ready - proceed directly to keyboard/mouse/ui_automation. " +
-            "Use ui_automation for element interactions (click, type, toggle). " +
-            "Use keyboard_control for hotkeys (Ctrl+S, etc.) and raw text input. " +
-            "Use mouse_control only as fallback when ui_automation fails. " +
-            "CLOSE workflow: window_management(close) may trigger 'Save?' dialog - use ui_automation to dismiss it.";
+            "## Windows MCP Server - Core Workflows\n\n" +
+            "### 1. WINDOW TARGETING (Required First Step)\n" +
+            "window_management(action='find', title='...') → returns handle\n" +
+            "Use this handle for ALL subsequent operations. Never launch twice - reuse handles.\n\n" +
+            "### 2. UI INTERACTION (Preferred)\n" +
+            "ui_automation(action='click'/'type'/'toggle', windowHandle='<handle>', ...)\n" +
+            "Works for: buttons, menus, text fields, checkboxes, standard controls.\n\n" +
+            "### 3. KEYBOARD\n" +
+            "keyboard_control(action='press', key='s', modifiers='ctrl') - hotkeys\n" +
+            "keyboard_control(action='type', text='...') - raw text input\n\n" +
+            "### 4. MOUSE OPERATIONS (Canvas/Drawing)\n" +
+            "**CRITICAL: Never guess coordinates. Discover them first:**\n" +
+            "1. ui_automation(action='find') → returns bounding rectangles for elements\n" +
+            "2. screenshot_control(annotate=true) → returns image with numbered element labels + coordinates\n" +
+            "3. mouse_control(action='drag', x=<discovered>, y=<discovered>, endX=..., endY=...)\n\n" +
+            "**When to use mouse_control:**\n" +
+            "- Canvas/drawing areas (no accessibility elements inside)\n" +
+            "- Drag operations\n" +
+            "- Custom controls ui_automation can't click\n\n" +
+            "**Hybrid workflow for drawing apps:**\n" +
+            "- Use ui_automation to click toolbar buttons (tools, colors)\n" +
+            "- Use ui_automation(find) to get canvas bounding rectangle\n" +
+            "- Use mouse_control(drag) inside canvas bounds for drawing\n\n" +
+            "### 5. VERIFICATION\n" +
+            "screenshot_control(annotate=true) - see current state with element positions\n" +
+            "ui_automation(action='wait_for_disappear'/'wait_for_state') - wait for UI changes";
     })
     .WithStdioServerTransport()
+    .WithTools<AppTool>()
     .WithTools<MouseControlTool>()
     .WithTools<KeyboardControlTool>()
     .WithTools<WindowManagementTool>()
     .WithTools<ScreenshotControlTool>()
-    .WithTools<UIAutomationTool>()
+    .WithTools<UIFindTool>()
+    .WithTools<UIClickTool>()
+    .WithTools<UITypeTool>()
+    .WithTools<UIWaitTool>()
+    .WithTools<UIReadTool>()
+    .WithTools<UIFileTool>()
     .WithPrompts<WindowsAutomationPrompts>()
     .WithResources<SystemResources>();
 
@@ -90,6 +169,8 @@ var host = builder.Build();
 
 // Force OCR service initialization to trigger startup logging (FR-044)
 // The NpuOcrService and LegacyOcrService log their availability status during construction
-_ = host.Services.GetRequiredService<IOcrService>();
+_ = host.Services.GetRequiredService<LegacyOcrService>();
 
 await host.RunAsync();
+
+return 0;

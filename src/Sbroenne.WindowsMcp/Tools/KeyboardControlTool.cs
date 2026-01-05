@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
 using ModelContextProtocol.Protocol;
@@ -10,6 +9,7 @@ using Sbroenne.WindowsMcp.Logging;
 using Sbroenne.WindowsMcp.Models;
 using Sbroenne.WindowsMcp.Native;
 using Sbroenne.WindowsMcp.Serialization;
+using Sbroenne.WindowsMcp.Utilities;
 using Sbroenne.WindowsMcp.Window;
 
 namespace Sbroenne.WindowsMcp.Tools;
@@ -20,11 +20,11 @@ namespace Sbroenne.WindowsMcp.Tools;
 [McpServerToolType]
 public sealed partial class KeyboardControlTool : IDisposable
 {
-    private readonly IKeyboardInputService _keyboardInputService;
-    private readonly IWindowEnumerator _windowEnumerator;
-    private readonly IWindowService _windowService;
-    private readonly IElevationDetector _elevationDetector;
-    private readonly ISecureDesktopDetector _secureDesktopDetector;
+    private readonly KeyboardInputService _keyboardInputService;
+    private readonly WindowEnumerator _windowEnumerator;
+    private readonly WindowService _windowService;
+    private readonly ElevationDetector _elevationDetector;
+    private readonly SecureDesktopDetector _secureDesktopDetector;
     private readonly KeyboardOperationLogger _logger;
     private readonly KeyboardConfiguration _configuration;
     private bool _disposed;
@@ -40,11 +40,11 @@ public sealed partial class KeyboardControlTool : IDisposable
     /// <param name="logger">The operation logger.</param>
     /// <param name="configuration">The keyboard configuration.</param>
     public KeyboardControlTool(
-        IKeyboardInputService keyboardInputService,
-        IWindowEnumerator windowEnumerator,
-        IWindowService windowService,
-        IElevationDetector elevationDetector,
-        ISecureDesktopDetector secureDesktopDetector,
+        KeyboardInputService keyboardInputService,
+        WindowEnumerator windowEnumerator,
+        WindowService windowService,
+        ElevationDetector elevationDetector,
+        SecureDesktopDetector secureDesktopDetector,
         KeyboardOperationLogger logger,
         KeyboardConfiguration configuration)
     {
@@ -58,36 +58,40 @@ public sealed partial class KeyboardControlTool : IDisposable
     }
 
     /// <summary>
-    /// Control keyboard input on Windows. Supports type (text), press (key), key_down, key_up, combo, sequence, release_all, get_keyboard_layout, and wait_for_idle actions.
+    /// ⚠️ TO SAVE FILES: STOP! Use ui_file(windowHandle, filePath) instead. keyboard_control does NOT handle Save As dialogs.
+    /// Keyboard input to the FOREGROUND window. After app(programPath='notepad.exe'), the window is already focused - just call keyboard_control directly.
+    /// Best for: typing text, hotkeys (key='s', modifiers='ctrl'), special keys.
+    /// For typing into a specific UI element by handle, use ui_type instead.
     /// </summary>
+    /// <remarks>
+    /// Supports type (text), press (key), key_down, key_up, combo, sequence, release_all, get_keyboard_layout, and wait_for_idle actions. WARNING: Do NOT put modifiers in the 'key' parameter (e.g., 'Ctrl+S' is WRONG). Use key='s', modifiers='ctrl'. FOR SAVE: Use ui_file tool.
+    /// </remarks>
     /// <param name="context">The MCP request context for logging and server access.</param>
     /// <param name="action">The keyboard action: type, press, key_down, key_up, combo, sequence, release_all, get_keyboard_layout, or wait_for_idle.</param>
     /// <param name="text">Text to type (required for type action).</param>
-    /// <param name="key">Key name to press (for press, key_down, key_up, combo actions). Examples: enter, tab, escape, f1, a, ctrl, shift, alt, win, copilot.</param>
-    /// <param name="modifiers">Modifier keys: ctrl, shift, alt, win (comma-separated, for press and combo actions).</param>
+    /// <param name="key">The MAIN key to press (for press, key_down, key_up actions). Examples: enter, tab, escape, f1, a, s, c, v, copilot. For Ctrl+S, this is 's' (not 'ctrl').</param>
+    /// <param name="modifiers">Modifier keys HELD during the key press: ctrl, shift, alt, win (comma-separated). For Ctrl+S: key='s', modifiers='ctrl'. For Ctrl+Shift+S: key='s', modifiers='ctrl,shift'.</param>
     /// <param name="repeat">Number of times to repeat key press (default: 1, for press action).</param>
-    /// <param name="sequence">JSON array of key sequence items, e.g., [{"key":"ctrl"},{"key":"c"}] (for sequence action).</param>
+    /// <param name="sequence">JSON array for sequence action. Format: [{"key":"f","modifiers":"alt"},{"key":"s"}] for Alt+F then S. Modifiers: "ctrl", "shift", "alt", "win" (or numbers: 1,2,4,8).</param>
     /// <param name="interKeyDelayMs">Delay between keys in sequence (milliseconds).</param>
     /// <param name="expectedWindowTitle">Expected window title (partial match). If specified, operation fails if foreground window title doesn't match.</param>
     /// <param name="expectedProcessName">Expected process name. If specified, operation fails if foreground window's process doesn't match.</param>
     /// <param name="clearFirst">For type action only: If true, clears the current field content before typing by sending Ctrl+A (select all) followed by the new text.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The result of the keyboard operation including success status and operation details.</returns>
+    /// <returns>The result includes success status, operation details, and 'target_window' (handle, title, process_name) showing which window received the input.</returns>
     [McpServerTool(Name = "keyboard_control", Title = "Keyboard Control", Destructive = true, OpenWorld = false, UseStructuredContent = true)]
-    [Description("Keyboard input to the FOREGROUND window. After window_management(launch), the window is already focused - just call keyboard_control directly. Do NOT launch the app again. Best for: typing text, hotkeys (Ctrl+S), special keys. For typing into a specific UI element by handle, use ui_automation(action='type') instead.")]
-    [return: Description("The result includes success status, operation details, and 'target_window' (handle, title, process_name) showing which window received the input.")]
     public async Task<KeyboardControlResult> ExecuteAsync(
         RequestContext<CallToolRequestParams> context,
-        [Description("The keyboard action: type, press, key_down, key_up, sequence, release_all, get_keyboard_layout, wait_for_idle")] string action,
-        [Description("Text to type (required for type action)")] string? text = null,
-        [Description("Key name to press (for press, key_down, key_up actions). Examples: enter, tab, escape, f1, a, ctrl, shift, alt, win, copilot")] string? key = null,
-        [Description("Modifier keys: ctrl, shift, alt, win (comma-separated, for press action)")] string? modifiers = null,
-        [Description("Number of times to repeat key press (default: 1, for press action)")] int repeat = 1,
-        [Description("JSON array of key sequence items, e.g., [{\"key\":\"ctrl\"},{\"key\":\"c\"}] (for sequence action)")] string? sequence = null,
-        [Description("Delay between keys in sequence (milliseconds)")] int? interKeyDelayMs = null,
-        [Description("Expected window title (partial match). If specified, operation fails with 'wrong_target_window' if the foreground window title doesn't contain this text. Use this to prevent sending input to the wrong application.")] string? expectedWindowTitle = null,
-        [Description("Expected process name (e.g., 'Code', 'chrome', 'notepad'). If specified, operation fails with 'wrong_target_window' if the foreground window's process doesn't match. Use this to prevent sending input to the wrong application.")] string? expectedProcessName = null,
-        [Description("For 'type' action only: If true, clears the current field content before typing by sending Ctrl+A (select all) followed by the new text. Default is false.")] bool clearFirst = false,
+        KeyboardAction action,
+        string? text = null,
+        string? key = null,
+        string? modifiers = null,
+        int repeat = 1,
+        string? sequence = null,
+        int? interKeyDelayMs = null,
+        string? expectedWindowTitle = null,
+        string? expectedProcessName = null,
+        bool clearFirst = false,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -97,9 +101,9 @@ public sealed partial class KeyboardControlTool : IDisposable
 
         // Create MCP client logger for observability
         var clientLogger = context.Server?.AsClientLoggerProvider().CreateLogger("KeyboardControl");
-        clientLogger?.LogKeyboardOperationStarted(action ?? "null");
+        clientLogger?.LogKeyboardOperationStarted(action.ToString());
 
-        _logger.LogOperationStart(correlationId, action ?? "null");
+        _logger.LogOperationStart(correlationId, action.ToString());
 
         // Create a linked token source with the configured timeout
         using var timeoutCts = new CancellationTokenSource(_configuration.TimeoutMs);
@@ -114,34 +118,14 @@ public sealed partial class KeyboardControlTool : IDisposable
                 var targetCheckResult = await VerifyTargetWindowAsync(expectedWindowTitle, expectedProcessName, linkedToken);
                 if (!targetCheckResult.Success)
                 {
-                    _logger.LogOperationFailure(correlationId, action ?? "null", targetCheckResult.ErrorCode.ToString(), targetCheckResult.Error ?? "Unknown error", stopwatch.ElapsedMilliseconds);
+                    _logger.LogOperationFailure(correlationId, action.ToString(), targetCheckResult.ErrorCode.ToString(), targetCheckResult.Error ?? "Unknown error", stopwatch.ElapsedMilliseconds);
                     return targetCheckResult;
                 }
             }
 
-            // Validate and parse the action
-            if (string.IsNullOrWhiteSpace(action))
-            {
-                var result = KeyboardControlResult.CreateFailure(
-                    KeyboardControlErrorCode.InvalidAction,
-                    "Action parameter is required");
-                _logger.LogOperationFailure(correlationId, "null", result.ErrorCode.ToString(), result.Error ?? "Unknown error", stopwatch.ElapsedMilliseconds);
-                return result;
-            }
-
-            var keyboardAction = ParseAction(action);
-            if (keyboardAction == null)
-            {
-                var result = KeyboardControlResult.CreateFailure(
-                    KeyboardControlErrorCode.InvalidAction,
-                    $"Unknown action: '{action}'. Valid actions are: type, press, key_down, key_up, combo, sequence, release_all, get_keyboard_layout, wait_for_idle");
-                _logger.LogOperationFailure(correlationId, action, result.ErrorCode.ToString(), result.Error ?? "Unknown error", stopwatch.ElapsedMilliseconds);
-                return result;
-            }
-
             KeyboardControlResult operationResult;
 
-            switch (keyboardAction.Value)
+            switch (action)
             {
                 case KeyboardAction.Type:
                     operationResult = await HandleTypeAsync(text, clearFirst, linkedToken);
@@ -186,18 +170,18 @@ public sealed partial class KeyboardControlTool : IDisposable
 
             // For successful operations that send input, attach the target window info
             // This helps LLM agents verify the input went to the correct window
-            if (operationResult.Success && keyboardAction.Value != KeyboardAction.GetKeyboardLayout && keyboardAction.Value != KeyboardAction.WaitForIdle)
+            if (operationResult.Success && action != KeyboardAction.GetKeyboardLayout && action != KeyboardAction.WaitForIdle)
             {
                 operationResult = await AttachTargetWindowInfoAsync(operationResult, linkedToken);
             }
 
             if (operationResult.Success)
             {
-                LogSuccess(correlationId, action, operationResult, stopwatch.ElapsedMilliseconds);
+                LogSuccess(correlationId, action.ToString(), operationResult, stopwatch.ElapsedMilliseconds);
             }
             else
             {
-                _logger.LogOperationFailure(correlationId, action, operationResult.ErrorCode.ToString(), operationResult.Error ?? "Unknown error", stopwatch.ElapsedMilliseconds);
+                _logger.LogOperationFailure(correlationId, action.ToString(), operationResult.ErrorCode.ToString(), operationResult.Error ?? "Unknown error", stopwatch.ElapsedMilliseconds);
             }
 
             return operationResult;
@@ -208,7 +192,7 @@ public sealed partial class KeyboardControlTool : IDisposable
             var errorResult = KeyboardControlResult.CreateFailure(
                 KeyboardControlErrorCode.OperationTimeout,
                 $"Operation timed out after {_configuration.TimeoutMs}ms");
-            _logger.LogOperationFailure(correlationId, action ?? "null", errorResult.ErrorCode.ToString(), errorResult.Error ?? "Unknown error", stopwatch.ElapsedMilliseconds);
+            _logger.LogOperationFailure(correlationId, action.ToString(), errorResult.ErrorCode.ToString(), errorResult.Error ?? "Unknown error", stopwatch.ElapsedMilliseconds);
             return errorResult;
         }
         catch (OperationCanceledException)
@@ -218,13 +202,13 @@ public sealed partial class KeyboardControlTool : IDisposable
             var errorResult = KeyboardControlResult.CreateFailure(
                 KeyboardControlErrorCode.UnexpectedError,
                 "Operation was cancelled");
-            _logger.LogOperationFailure(correlationId, action ?? "null", errorResult.ErrorCode.ToString(), errorResult.Error ?? "Unknown error", stopwatch.ElapsedMilliseconds);
+            _logger.LogOperationFailure(correlationId, action.ToString(), errorResult.ErrorCode.ToString(), errorResult.Error ?? "Unknown error", stopwatch.ElapsedMilliseconds);
             return errorResult;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             stopwatch.Stop();
-            _logger.LogOperationException(correlationId, action ?? "null", ex);
+            _logger.LogOperationException(correlationId, action.ToString(), ex);
             var errorResult = KeyboardControlResult.CreateFailure(
                 KeyboardControlErrorCode.UnexpectedError,
                 $"An unexpected error occurred: {ex.Message}");
@@ -266,8 +250,12 @@ public sealed partial class KeyboardControlTool : IDisposable
             await Task.Delay(50, cancellationToken);
         }
 
+        // Normalize Windows file paths: convert forward slashes to backslashes
+        // This handles cases where LLMs provide paths like D:/folder/file.txt
+        var normalizedText = PathNormalizer.NormalizeWindowsPath(text);
+
         // Empty text is valid - returns success with 0 characters
-        return await _keyboardInputService.TypeTextAsync(text ?? string.Empty, cancellationToken);
+        return await _keyboardInputService.TypeTextAsync(normalizedText, cancellationToken);
     }
 
     private async Task<KeyboardControlResult> HandlePressAsync(string? key, string? modifiers, int repeat, CancellationToken cancellationToken)
@@ -376,9 +364,16 @@ public sealed partial class KeyboardControlTool : IDisposable
         }
         catch (JsonException ex)
         {
+            // Provide helpful error message with correct format examples
             return KeyboardControlResult.CreateFailure(
                 KeyboardControlErrorCode.InvalidAction,
-                $"Invalid sequence JSON: {ex.Message}");
+                $"Invalid sequence JSON: {ex.Message}. " +
+                "CORRECT FORMAT: JSON array of objects with 'key' property. " +
+                "Examples: " +
+                "[{\"key\":\"a\"}] for single key, " +
+                "[{\"key\":\"s\",\"modifiers\":1}] for Ctrl+S (modifiers: 1=ctrl, 2=shift, 4=alt, 8=win), " +
+                "[{\"key\":\"f\",\"modifiers\":4},{\"key\":\"s\"}] for Alt+F then S (menu navigation). " +
+                "TIP: For saving files, use ui_file tool instead.");
         }
 
         return await _keyboardInputService.ExecuteSequenceAsync(sequence, interKeyDelayMs, cancellationToken);
@@ -397,22 +392,6 @@ public sealed partial class KeyboardControlTool : IDisposable
     private async Task<KeyboardControlResult> HandleWaitForIdleAsync(CancellationToken cancellationToken)
     {
         return await _keyboardInputService.WaitForIdleAsync(cancellationToken);
-    }
-
-    private static KeyboardAction? ParseAction(string action)
-    {
-        return action.ToLowerInvariant() switch
-        {
-            "type" => KeyboardAction.Type,
-            "press" => KeyboardAction.Press,
-            "key_down" or "keydown" => KeyboardAction.KeyDown,
-            "key_up" or "keyup" => KeyboardAction.KeyUp,
-            "sequence" => KeyboardAction.Sequence,
-            "release_all" or "releaseall" => KeyboardAction.ReleaseAll,
-            "get_keyboard_layout" or "getkeyboardlayout" or "layout" => KeyboardAction.GetKeyboardLayout,
-            "wait_for_idle" or "waitforidle" or "idle" => KeyboardAction.WaitForIdle,
-            _ => null
-        };
     }
 
     private static ModifierKey ParseModifiers(string? modifiers)

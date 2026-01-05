@@ -33,6 +33,11 @@ public sealed class UITestHarnessForm : Form
     // Data Grid Tab
     private readonly DataGridView _dataGrid;
 
+    // Dialogs Tab
+    private readonly Button _saveAsButton = null!;
+    private readonly Label _lastSavePathLabel = null!;
+    private string? _lastSavePath;
+
     // Status
     private readonly Label _statusLabel;
 
@@ -96,6 +101,11 @@ public sealed class UITestHarnessForm : Form
     /// </summary>
     public string? SelectedTreeNode => _treeView.SelectedNode?.Text;
 
+    /// <summary>
+    /// Gets the last file path that was saved via the Save As dialog.
+    /// </summary>
+    public string? LastSavePath => _lastSavePath;
+
     public UITestHarnessForm()
     {
         // Form setup
@@ -105,6 +115,10 @@ public sealed class UITestHarnessForm : Form
         MaximizeBox = false;
         StartPosition = FormStartPosition.Manual;
         BackColor = Color.White;
+        KeyPreview = true; // Enable form-level keyboard handling for Ctrl+S
+
+        // Handle Ctrl+S to show Save As dialog (like a real application)
+        KeyDown += OnFormKeyDown;
 
         // Status label at top
         _statusLabel = new Label
@@ -131,8 +145,9 @@ public sealed class UITestHarnessForm : Form
         var listViewTab = new TabPage("List View") { Name = "ListViewTab" };
         var treeViewTab = new TabPage("Tree View") { Name = "TreeViewTab" };
         var dataGridTab = new TabPage("Data Grid") { Name = "DataGridTab" };
+        var dialogsTab = new TabPage("Dialogs") { Name = "DialogsTab" };
 
-        _tabControl.TabPages.AddRange([formControlsTab, listViewTab, treeViewTab, dataGridTab]);
+        _tabControl.TabPages.AddRange([formControlsTab, listViewTab, treeViewTab, dataGridTab, dialogsTab]);
 
         // =====================
         // Form Controls Tab
@@ -532,6 +547,38 @@ public sealed class UITestHarnessForm : Form
             }
         };
         dataGridTab.Controls.Add(_dataGrid);
+
+        // =====================
+        // Dialogs Tab
+        // =====================
+
+        var saveDialogGroup = new GroupBox
+        {
+            Text = "File Dialogs",
+            Location = new Point(10, 10),
+            Size = new Size(620, 150),
+            Name = "FileDialogsGroup",
+        };
+        dialogsTab.Controls.Add(saveDialogGroup);
+
+        _saveAsButton = new Button
+        {
+            Text = "Save As...",
+            Location = new Point(10, 30),
+            Size = new Size(120, 35),
+            Name = "SaveAsButton",
+        };
+        _saveAsButton.Click += (_, _) => ShowSaveDialog();
+        saveDialogGroup.Controls.Add(_saveAsButton);
+
+        _lastSavePathLabel = new Label
+        {
+            Text = "Last saved: (none)",
+            Location = new Point(10, 80),
+            Size = new Size(600, 25),
+            Name = "LastSavePathLabel",
+        };
+        saveDialogGroup.Controls.Add(_lastSavePathLabel);
     }
 
     /// <summary>
@@ -565,11 +612,61 @@ public sealed class UITestHarnessForm : Form
         _treeView.SelectedNode = null;
         _dataGrid.ClearSelection();
         _tabControl.SelectedIndex = 0;
+        _lastSavePath = null;
+        _lastSavePathLabel.Text = "Last saved: (none)";
         UpdateStatus("UI Test Harness Reset");
     }
 
     private void UpdateStatus(string message)
     {
         _statusLabel.Text = message;
+    }
+
+    /// <summary>
+    /// Handles Ctrl+S to show Save As dialog (like a real application).
+    /// </summary>
+    private void OnFormKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Control && e.KeyCode == Keys.S)
+        {
+            e.SuppressKeyPress = true; // Prevent the beep
+            ShowSaveDialog();
+        }
+    }
+
+    /// <summary>
+    /// Shows the Save dialog and saves the file.
+    /// Called by Ctrl+S or by the Save button.
+    /// </summary>
+    private void ShowSaveDialog()
+    {
+        using var saveDialog = new SaveFileDialog
+        {
+            Title = "Save",
+            Filter = "All files (*.*)|*.*|Text files (*.txt)|*.txt|PNG images (*.png)|*.png",
+            DefaultExt = "txt",
+            AddExtension = true,
+        };
+
+        if (saveDialog.ShowDialog(this) == DialogResult.OK)
+        {
+            _lastSavePath = saveDialog.FileName;
+            _lastSavePathLabel.Text = $"Last saved: {_lastSavePath}";
+            UpdateStatus($"Saved to: {_lastSavePath}");
+
+            // Actually write a test file to verify the save worked
+            try
+            {
+                File.WriteAllText(_lastSavePath, $"Test file created at {DateTime.Now}");
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Save failed: {ex.Message}");
+            }
+        }
+        else
+        {
+            UpdateStatus("Save cancelled");
+        }
     }
 }

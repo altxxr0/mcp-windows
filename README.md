@@ -89,16 +89,21 @@ For detailed feature documentation, see [FEATURES.md](FEATURES.md).
 window_management(action='find', title='Notepad') → handle='123456'
 
 # 2. Click elements by name using the handle
-ui_automation(action='click', windowHandle='123456', nameContains='Save')
+ui_click(windowHandle='123456', nameContains='Save')
 
 # 3. If you don't know element names → discover with annotated screenshot
 screenshot_control(windowHandle='123456')  # Returns numbered elements + image
 
-# 4. For toggles → atomic state management
-window_management(action='find', title='Settings') → handle='789'
-ui_automation(action='ensure_state', windowHandle='789', nameContains='Dark Mode', desiredState='on')
+# 4. Type text into fields
+ui_type(windowHandle='123456', controlType='Edit', text='Hello World')
 
-# 5. Fallback for games/custom UIs → full mouse + keyboard support
+# 5. Read text from elements
+ui_read(windowHandle='123456', elementId='...')
+
+# 6. Wait for elements to appear
+ui_wait(windowHandle='123456', mode='appear', nameContains='Save')
+
+# 7. Fallback for games/custom UIs → full mouse + keyboard support
 screenshot_control(windowHandle='...')  # Get element coordinates
 mouse_control(action='click', x=450, y=300)
 keyboard_control(action='type', text='player1')
@@ -152,11 +157,17 @@ If you downloaded from the releases page, add to your MCP client configuration:
 
 | Tool | Description | Key Actions |
 |------|-------------|-------------|
-| `ui_automation` | **Primary tool** — semantic UI interaction | find, click, type, toggle, ensure_state, get_tree |
+| `ui_find` | Find UI elements by name, type, or ID | Find elements for discovery |
+| `ui_click` | Click UI elements | Click buttons, tabs, checkboxes |
+| `ui_type` | Type text into fields | Enter text, clear existing |
+| `ui_read` | Read text from elements | Text extraction + OCR fallback |
+| `ui_wait` | Wait for UI state changes | appear, disappear, enabled, disabled |
+| `ui_file` | File operations | Save dialog handling |
 | `screenshot_control` | Annotated screenshots for discovery | capture with element overlays (default) |
 | `mouse_control` | Fallback mouse input | click, move, drag, scroll |
 | `keyboard_control` | Keyboard input & hotkeys | type, press, key sequences |
-| `window_management` | Window control & app launching | launch, find, activate, move, resize |
+| `app` | Launch applications | notepad.exe, chrome.exe, winword.exe |
+| `window_management` | Window control | find, activate, move, resize |
 
 For complete action reference, see [FEATURES.md](FEATURES.md).
 
@@ -167,7 +178,7 @@ This MCP server interacts directly with your Windows operating system to perform
 ## Testing
 
 ```bash
-# Run all tests
+# Run all unit/integration tests
 dotnet test
 
 # Run unit tests only
@@ -176,6 +187,21 @@ dotnet test --filter "FullyQualifiedName~Unit"
 # Run integration tests only (requires Windows desktop session)
 dotnet test --filter "FullyQualifiedName~Integration"
 ```
+
+### LLM Integration Tests
+
+LLM tests verify AI agents can correctly use the MCP tools. Uses [agent-benchmark](https://github.com/mykhaliev/agent-benchmark).
+
+```powershell
+cd tests/Sbroenne.WindowsMcp.LLM.Tests
+.\Run-LLMTests.ps1 -Build   # Build server and run all tests
+```
+
+Requires `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_API_KEY` environment variables. See [LLM Tests README](tests/Sbroenne.WindowsMcp.LLM.Tests/README.md) for details.
+
+## Acknowledgments
+
+- **[agent-benchmark](https://github.com/mykhaliev/agent-benchmark)** by [@mykhaliev](https://github.com/mykhaliev) - LLM agent testing framework used for our integration tests
 
 ## License
 

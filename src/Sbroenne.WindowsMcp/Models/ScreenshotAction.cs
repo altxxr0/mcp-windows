@@ -13,5 +13,10 @@ public enum ScreenshotAction
     /// <summary>
     /// List available monitors with metadata.
     /// </summary>
-    ListMonitors = 1
+    ListMonitors = 1,
+
+    /// <summary>
+    /// Record a sequence of screenshots.
+    /// </summary>
+    Record = 2
 }

@@ -82,7 +82,7 @@ public sealed partial class ScreenshotControlTool
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The result containing base64-encoded image data or file path, dimensions, original dimensions (if scaled), file size, and error details if failed.</returns>
     [McpServerTool(Name = "screenshot_control", Title = "Screenshot Capture", ReadOnly = true, Idempotent = true, OpenWorld = false, UseStructuredContent = true)]
-    [Description("Capture screenshots with UI element discovery. Default: returns annotated screenshot with numbered elements. WINDOW CAPTURE: First call window_management(action='find') to get handle, then screenshot_control(target='window', windowHandle='123456'). Targets: primary_screen (default), secondary_screen, monitor, window (requires windowHandle), region, all_monitors. Use annotate=false for plain screenshot.")]
+    [Description("Capture screenshots or recordings. Default: annotated screenshot. For recording: action='record', duration=3.0, fps=5. WINDOW CAPTURE: First call window_management(action='find') to get handle, then screenshot_control(target='window', windowHandle='123456'). Targets: primary_screen (default), secondary_screen, monitor, window (requires windowHandle), region, all_monitors.")]
     [return: Description("The result of the screenshot operation including success status, base64-encoded image data or file path, annotated elements (if annotate=true), and error details if failed.")]
     public async Task<ScreenshotControlResult> ExecuteAsync(
         RequestContext<CallToolRequestParams> context,
@@ -100,6 +100,8 @@ public sealed partial class ScreenshotControlTool
         [Description("Image compression quality 1-100. Default: 85. Only affects JPEG format.")] int quality = UnspecifiedInt,
         [Description("How to return the screenshot. 'inline' returns base64 data, 'file' saves to disk and returns path. Default: 'inline'.")] string outputMode = "",
         [Description("Directory or file path for output when outputMode is 'file'. If directory, auto-generates filename. If null, uses temp directory.")] string outputPath = "",
+        [Description("Duration in seconds for recording (default 3.0). Only used when action='record'.")] double duration = 3.0,
+        [Description("Frames per second for recording (default 5). Only used when action='record'.")] double fps = 5.0,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -122,7 +124,7 @@ public sealed partial class ScreenshotControlTool
         {
             return ScreenshotControlResult.Error(
                 ScreenshotErrorCode.InvalidRequest,
-                $"Invalid action: '{action}'. Valid values: 'capture', 'list_monitors'");
+                $"Invalid action: '{action}'. Valid values: 'capture', 'list_monitors', 'record'");
         }
 
         // Parse target
@@ -205,7 +207,9 @@ public sealed partial class ScreenshotControlTool
             ImageFormat = parsedImageFormat ?? ScreenshotConfiguration.DefaultImageFormat,
             Quality = parsedQuality,
             OutputMode = parsedOutputMode ?? ScreenshotConfiguration.DefaultOutputMode,
-            OutputPath = string.IsNullOrWhiteSpace(outputPath) ? null : outputPath
+            OutputPath = string.IsNullOrWhiteSpace(outputPath) ? null : outputPath,
+            Duration = duration,
+            Fps = fps
         };
 
         // Execute and return result
@@ -227,6 +231,7 @@ public sealed partial class ScreenshotControlTool
         {
             "capture" => ScreenshotAction.Capture,
             "list_monitors" => ScreenshotAction.ListMonitors,
+            "record" => ScreenshotAction.Record,
             _ => null
         };
     }
